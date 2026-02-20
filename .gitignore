@@ -1,0 +1,16 @@
+# Binaries
+*.exe
+*.out
+*.test
+
+# Dependency directories
+/vendor/
+
+# Database
+database.db
+
+# IDE
+.idea/
+
+# Logs
+*.log

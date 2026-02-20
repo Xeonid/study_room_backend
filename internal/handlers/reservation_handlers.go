@@ -21,7 +21,7 @@ type ReservationRequest struct {
 	EndTime       time.Time `json:"end_time,omitempty"`
 }
 
-func (h *ReservationHandler) HandleReservations(w http.ResponseWriter, r *http.Request) {
+func (h *ReservationHandler) Reservations(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(middleware.UserIDKey).(int)
 
 	req := &ReservationRequest{}
