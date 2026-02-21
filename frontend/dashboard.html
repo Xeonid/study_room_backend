@@ -1,0 +1,52 @@
+<!-- dashboard.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="p-4">
+
+<div class="container">
+    <h1 class="mb-4">Welcome!</h1>
+
+    <!-- -------------------- Reservation Form -------------------- -->
+    <form id="reservationForm" class="mb-5">
+        <div class="mb-2">
+            <label for="roomSelect" class="form-label">Select Room</label>
+            <select id="roomSelect" class="form-select" required></select>
+        </div>
+        <div class="mb-2">
+            <label for="startTime" class="form-label">Start Time</label>
+            <input type="datetime-local" id="startTime" class="form-control" required>
+        </div>
+        <div class="mb-2">
+            <label for="endTime" class="form-label">End Time</label>
+            <input type="datetime-local" id="endTime" class="form-control" required>
+        </div>
+        <button type="submit" class="btn btn-primary mt-2">Reserve Room</button>
+    </form>
+
+    <!-- -------------------- My Reservations -------------------- -->
+    <h3>My Reservations</h3>
+    <table id="reservationsTable" class="table table-striped">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Room</th>
+            <th>Start</th>
+            <th>End</th>
+            <th>Status</th>
+            <th>Action</th>
+        </tr>
+        </thead>
+        <tbody>
+        <!-- JS will populate -->
+        </tbody>
+    </table>
+</div>
+
+<script src="dashboard.js"></script>
+</body>
+</html>

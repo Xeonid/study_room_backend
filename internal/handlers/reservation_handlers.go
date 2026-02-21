@@ -2,46 +2,36 @@ package handlers
 
 import (
 	"database/sql"
+	"encoding/json"
 	"net/http"
+	"strconv"
 	"time"
 
 	"study_room_backend/internal/middleware"
-	"study_room_backend/internal/utils"
 )
 
+// ReservationHandler handles reservations
 type ReservationHandler struct {
 	DB *sql.DB
 }
 
-type ReservationRequest struct {
-	Action        string    `json:"action"`
-	ReservationID int       `json:"reservation_id,omitempty"`
-	RoomID        int       `json:"room_id,omitempty"`
-	StartTime     time.Time `json:"start_time,omitempty"`
-	EndTime       time.Time `json:"end_time,omitempty"`
+// Request struct for creating a reservation
+type CreateReservationRequest struct {
+	RoomID    int       `json:"room_id"`
+	StartTime time.Time `json:"start_time"`
+	EndTime   time.Time `json:"end_time"`
 }
 
-func (h *ReservationHandler) Reservations(w http.ResponseWriter, r *http.Request) {
+// -------------------- Create --------------------
+func (h *ReservationHandler) CreateReservation(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(middleware.UserIDKey).(int)
 
-	req := &ReservationRequest{}
-	if r.Method == http.MethodPost {
-		if !utils.DecodeJSONBody(w, r, req) {
-			return
-		}
+	var req CreateReservationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
 	}
 
-	switch req.Action {
-	case "create":
-		h.createReservation(w, userID, req)
-	case "delete":
-		h.deleteReservation(w, userID, req)
-	default:
-		h.getReservations(w, userID)
-	}
-}
-
-func (h *ReservationHandler) createReservation(w http.ResponseWriter, userID int, req *ReservationRequest) {
 	tx, err := h.DB.Begin()
 	if err != nil {
 		http.Error(w, "Transaction failed", http.StatusInternalServerError)
@@ -53,9 +43,9 @@ func (h *ReservationHandler) createReservation(w http.ResponseWriter, userID int
 	err = tx.QueryRow(`
 		SELECT 1 FROM reservations
 		WHERE room_id = ?
-		AND start_time < ?
-		AND end_time > ?
-		AND status = 'active'
+		  AND start_time < ?
+		  AND end_time > ?
+		  AND status = 'active'
 	`, req.RoomID, req.EndTime, req.StartTime).Scan(&exists)
 
 	if err == nil {
@@ -67,30 +57,19 @@ func (h *ReservationHandler) createReservation(w http.ResponseWriter, userID int
 		INSERT INTO reservations (room_id, user_id, start_time, end_time)
 		VALUES (?, ?, ?, ?)
 	`, req.RoomID, userID, req.StartTime, req.EndTime)
-
 	if err != nil {
 		http.Error(w, "Failed to create reservation", http.StatusInternalServerError)
 		return
 	}
 
 	tx.Commit()
-	utils.JSON(w, http.StatusCreated, map[string]string{"message": "Reservation created"})
+	writeJSON(w, http.StatusCreated, map[string]string{"message": "Reservation created"})
 }
 
-func (h *ReservationHandler) deleteReservation(w http.ResponseWriter, userID int, req *ReservationRequest) {
-	_, err := h.DB.Exec(`
-		DELETE FROM reservations
-		WHERE id = ? AND user_id = ?
-	`, req.ReservationID, userID)
-	if err != nil {
-		http.Error(w, "Failed to delete reservation", http.StatusInternalServerError)
-		return
-	}
+// -------------------- List --------------------
+func (h *ReservationHandler) GetReservations(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value(middleware.UserIDKey).(int)
 
-	utils.JSON(w, http.StatusOK, map[string]string{"message": "Reservation deleted"})
-}
-
-func (h *ReservationHandler) getReservations(w http.ResponseWriter, userID int) {
 	rows, err := h.DB.Query(`
 		SELECT id, room_id, start_time, end_time, status
 		FROM reservations
@@ -118,5 +97,49 @@ func (h *ReservationHandler) getReservations(w http.ResponseWriter, userID int) 
 		})
 	}
 
-	utils.JSON(w, http.StatusOK, reservations)
+	writeJSON(w, http.StatusOK, reservations)
+}
+
+// -------------------- Delete --------------------
+// -------------------- Delete --------------------
+func (h *ReservationHandler) DeleteReservation(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userID := r.Context().Value(middleware.UserIDKey).(int)
+	idStr := r.URL.Query().Get("id")
+	resID, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid reservation ID", http.StatusBadRequest)
+		return
+	}
+
+	result, err := h.DB.Exec(`
+        DELETE FROM reservations
+        WHERE id = ? AND user_id = ?
+    `, resID, userID)
+	if err != nil {
+		http.Error(w, "Failed to delete reservation", http.StatusInternalServerError)
+		return
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		http.Error(w, "Reservation not found or not owned by you", http.StatusNotFound)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"message": "Reservation deleted"})
+}
+
+// -------------------- Helper --------------------
+func writeJSON(w http.ResponseWriter, status int, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if data == nil {
+		data = []interface{}{}
+	}
+	json.NewEncoder(w).Encode(data)
 }
