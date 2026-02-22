@@ -44,7 +44,7 @@ function initTimeSelectOptions() {
     minuteSelectIDs.forEach(id => {
         const select = document.getElementById(id);
         select.innerHTML = "";
-        for (let min = 0; min < 60; min += 10) {
+        for (let min = 0; min < 60; min += 1) {
             const label = String(min).padStart(2, "0");
             select.appendChild(createOption(min, label));
         }
