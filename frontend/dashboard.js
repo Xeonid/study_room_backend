@@ -12,20 +12,158 @@ async function writeJSON(res) {
     }
 }
 
-// -------------------- Initialize Flatpickr --------------------
-function initPickers() {
-    flatpickr("#startPicker", {
-        enableTime: true,
-        dateFormat: "Y-m-d H:i",
-        minuteIncrement: 5,
-        allowInput: false
+// -------------------- Reservation Scheduler State --------------------
+const schedulerState = {
+    selectedDate: null,
+    startDateTime: null,
+    endDateTime: null,
+    calendar: null,
+    modal: null
+};
+
+function showCalendarStep() {
+    document.getElementById("schedulerTitle").textContent = "Choose reservation date";
+    document.getElementById("calendarStep").classList.remove("d-none");
+    document.getElementById("timeStep").classList.add("d-none");
+
+    const backBtn = document.getElementById("schedulerBackBtn");
+    const nextBtn = document.getElementById("schedulerNextBtn");
+
+    backBtn.classList.add("d-none");
+    nextBtn.textContent = "Next";
+    nextBtn.disabled = !schedulerState.selectedDate;
+}
+
+function parseTimeInputToDate(value) {
+    if (!schedulerState.selectedDate || !value) {
+        return null;
+    }
+
+    const [hoursPart, minutesPart] = value.split(":");
+    const hour = Number(hoursPart);
+    const minute = Number(minutesPart);
+
+    if (Number.isNaN(hour) || Number.isNaN(minute)) {
+        return null;
+    }
+
+    const dateTime = new Date(schedulerState.selectedDate);
+    dateTime.setHours(hour, minute, 0, 0);
+    return dateTime;
+}
+
+function formatTime(dateTime) {
+    return `${String(dateTime.getHours()).padStart(2, "0")}:${String(dateTime.getMinutes()).padStart(2, "0")}`;
+}
+
+function syncSchedulerDateLabel() {
+    const label = document.getElementById("selectedDateLabel");
+    if (!schedulerState.selectedDate) {
+        label.textContent = "No date selected";
+        return;
+    }
+
+    label.textContent = `Reservation date: ${schedulerState.selectedDate.toLocaleDateString()}`;
+}
+
+function prefillTimeInputsIfChosen() {
+    const startInput = document.getElementById("startTimeInput");
+    const endInput = document.getElementById("endTimeInput");
+
+    if (!schedulerState.startDateTime || !schedulerState.endDateTime) {
+        startInput.value = "09:00";
+        endInput.value = "10:00";
+        return;
+    }
+
+    startInput.value = formatTime(schedulerState.startDateTime);
+    endInput.value = formatTime(schedulerState.endDateTime);
+}
+
+function showTimeStep() {
+    document.getElementById("schedulerTitle").textContent = "Choose start and end time";
+    document.getElementById("calendarStep").classList.add("d-none");
+    document.getElementById("timeStep").classList.remove("d-none");
+
+    const backBtn = document.getElementById("schedulerBackBtn");
+    const nextBtn = document.getElementById("schedulerNextBtn");
+
+    backBtn.classList.remove("d-none");
+    nextBtn.textContent = "Apply";
+    nextBtn.disabled = false;
+
+    syncSchedulerDateLabel();
+    prefillTimeInputsIfChosen();
+}
+
+function updateReservationSummary() {
+    const summary = document.getElementById("reservationSummary");
+    if (!schedulerState.startDateTime || !schedulerState.endDateTime) {
+        summary.textContent = "No date and time selected yet.";
+        summary.classList.add("text-muted");
+        return;
+    }
+
+    const start = schedulerState.startDateTime;
+    const end = schedulerState.endDateTime;
+    summary.textContent = `${start.toLocaleDateString()} · ${formatTime(start)} to ${formatTime(end)}`;
+    summary.classList.remove("text-muted");
+}
+
+function applyTimeSelection() {
+    const startValue = document.getElementById("startTimeInput").value;
+    const endValue = document.getElementById("endTimeInput").value;
+
+    const start = parseTimeInputToDate(startValue);
+    const end = parseTimeInputToDate(endValue);
+
+    if (!start || !end) {
+        alert("Please choose reservation date and times.");
+        return false;
+    }
+
+    if (end <= start) {
+        alert("End time must be after start time.");
+        return false;
+    }
+
+    schedulerState.startDateTime = start;
+    schedulerState.endDateTime = end;
+    updateReservationSummary();
+    schedulerState.modal.hide();
+    return true;
+}
+
+function initSchedulerModal() {
+    schedulerState.modal = new bootstrap.Modal(document.getElementById("schedulerModal"));
+
+    schedulerState.calendar = flatpickr("#calendarContainer", {
+        inline: true,
+        minDate: "today",
+        dateFormat: "Y-m-d",
+        onChange(selectedDates) {
+            schedulerState.selectedDate = selectedDates[0] || null;
+            document.getElementById("schedulerNextBtn").disabled = !schedulerState.selectedDate;
+        }
     });
-    flatpickr("#endPicker", {
-        enableTime: true,
-        dateFormat: "Y-m-d H:i",
-        minuteIncrement: 5,
-        allowInput: false
+
+    document.getElementById("openSchedulerBtn").addEventListener("click", () => {
+        showCalendarStep();
+        schedulerState.modal.show();
     });
+
+    document.getElementById("schedulerBackBtn").addEventListener("click", showCalendarStep);
+
+    document.getElementById("schedulerNextBtn").addEventListener("click", () => {
+        const title = document.getElementById("schedulerTitle").textContent;
+        if (title === "Choose reservation date") {
+            showTimeStep();
+        } else {
+            applyTimeSelection();
+        }
+    });
+
+    updateReservationSummary();
 }
 
 // -------------------- Fetch Rooms --------------------
@@ -90,11 +228,11 @@ async function createReservation(event) {
     if (!token) return;
 
     const roomID = document.getElementById("roomSelect").value;
-    const startTime = document.getElementById("startPicker")._flatpickr.selectedDates[0];
-    const endTime = document.getElementById("endPicker")._flatpickr.selectedDates[0];
+    const startTime = schedulerState.startDateTime;
+    const endTime = schedulerState.endDateTime;
 
     if (!startTime || !endTime) {
-        alert("Please select start and end times");
+        alert("Please choose date and times first.");
         return;
     }
 
@@ -147,7 +285,7 @@ function initDashboard() {
         return;
     }
 
-    initPickers();
+    initSchedulerModal();
     fetchRooms();
     fetchReservations();
 

@@ -11,12 +11,55 @@
 <h1>Welcome!</h1>
 
 <!-- -------------------- Reserve Room Form -------------------- -->
-<form id="reservationForm" class="mb-4 d-flex flex-column gap-2" style="max-width: 400px;">
+<form id="reservationForm" class="mb-4 d-flex flex-column gap-2" style="max-width: 520px;">
     <select id="roomSelect" class="form-select" required></select>
-    <input id="startPicker" class="form-control" placeholder="Start Date & Time" required>
-    <input id="endPicker" class="form-control" placeholder="End Date & Time" required>
+
+    <div class="border rounded p-3 bg-light">
+        <label class="form-label fw-semibold mb-2">Reservation time</label>
+        <div id="reservationSummary" class="small text-muted mb-2">No date and time selected yet.</div>
+        <button type="button" id="openSchedulerBtn" class="btn btn-outline-primary btn-sm">Choose date & time</button>
+    </div>
+
     <button class="btn btn-primary mt-2">Reserve Room</button>
 </form>
+
+<!-- -------------------- Scheduler Modal -------------------- -->
+<div class="modal fade" id="schedulerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="schedulerTitle">Choose reservation date</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="calendarStep">
+                    <div id="calendarContainer"></div>
+                    <div class="small text-muted mt-2">Pick the reservation date first.</div>
+                </div>
+
+                <div id="timeStep" class="d-none">
+                    <div class="alert alert-secondary py-2 mb-3" id="selectedDateLabel"></div>
+
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <label for="startTimeInput" class="form-label fw-semibold mb-1">Start time</label>
+                            <input id="startTimeInput" type="time" step="60" class="form-control" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label for="endTimeInput" class="form-label fw-semibold mb-1">End time</label>
+                            <input id="endTimeInput" type="time" step="60" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="small text-muted mt-3">You can choose any minute (same-day reservation).</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="schedulerBackBtn" class="btn btn-outline-secondary d-none">Back</button>
+                <button type="button" id="schedulerNextBtn" class="btn btn-primary" disabled>Next</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- -------------------- Reservations Table -------------------- -->
 <h3>My Reservations</h3>
@@ -36,6 +79,7 @@
     </tbody>
 </table>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="dashboard.js"></script>
 
