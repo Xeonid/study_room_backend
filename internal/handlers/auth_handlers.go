@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"net/http"
+	"strings"
 
 	"study_room_backend/internal/auth"
 	"study_room_backend/internal/utils"
@@ -65,11 +66,28 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	body.Email = strings.TrimSpace(body.Email)
+	body.Password = strings.TrimSpace(body.Password)
+	if body.Email == "" || body.Password == "" {
+		http.Error(w, "Email and password are required", http.StatusBadRequest)
+		return
+	}
+
 	var id int
 	var hashedPassword, role string
 	err := h.DB.QueryRow(`SELECT id, password, role FROM users WHERE email = ?`, body.Email).
 		Scan(&id, &hashedPassword, &role)
-	if err != nil || !auth.CheckPasswordHash(body.Password, hashedPassword) {
+	if err == sql.ErrNoRows {
+		http.Error(w, "Account not found", http.StatusUnauthorized)
+		return
+	}
+
+	if err != nil {
+		http.Error(w, "Failed to login", http.StatusInternalServerError)
+		return
+	}
+
+	if !auth.CheckPasswordHash(body.Password, hashedPassword) {
 		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 		return
 	}
