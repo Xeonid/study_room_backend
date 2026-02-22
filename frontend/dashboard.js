@@ -132,6 +132,70 @@ function updateReservationSummary() {
     summary.classList.remove("text-muted");
 }
 
+function formatDateLocal(dt) {
+    const year = dt.getFullYear();
+    const month = String(dt.getMonth() + 1).padStart(2, "0");
+    const day = String(dt.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+}
+
+function formatTimeLocal(dt) {
+    const hour = String(dt.getHours()).padStart(2, "0");
+    const minute = String(dt.getMinutes()).padStart(2, "0");
+    return `${hour}:${minute}`;
+}
+
+function syncManualInputsFromState() {
+    const manualDateInput = document.getElementById("manualDate");
+    const manualStartInput = document.getElementById("manualStartTime");
+    const manualEndInput = document.getElementById("manualEndTime");
+
+    manualDateInput.value = schedulerState.startDateTime ? formatDateLocal(schedulerState.startDateTime) : "";
+    manualStartInput.value = schedulerState.startDateTime ? formatTimeLocal(schedulerState.startDateTime) : "";
+    manualEndInput.value = schedulerState.endDateTime ? formatTimeLocal(schedulerState.endDateTime) : "";
+}
+
+function buildDateTimeFromDateAndTime(dateValue, timeValue) {
+    const [year, month, day] = dateValue.split("-").map(Number);
+    const [hour, minute] = timeValue.split(":").map(Number);
+
+    if ([year, month, day, hour, minute].some(Number.isNaN)) {
+        return null;
+    }
+
+    return new Date(year, month - 1, day, hour, minute, 0, 0);
+}
+
+function applyManualDateTimeInputs() {
+    const manualDateInput = document.getElementById("manualDate");
+    const manualStartInput = document.getElementById("manualStartTime");
+    const manualEndInput = document.getElementById("manualEndTime");
+
+    if (!manualDateInput.value || !manualStartInput.value || !manualEndInput.value) {
+        return true;
+    }
+
+    const start = buildDateTimeFromDateAndTime(manualDateInput.value, manualStartInput.value);
+    const end = buildDateTimeFromDateAndTime(manualDateInput.value, manualEndInput.value);
+
+    if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+        alert("Please enter valid date and time values.");
+        return false;
+    }
+
+    if (end <= start) {
+        alert("End time must be after start time.");
+        return false;
+    }
+
+    schedulerState.startDateTime = start;
+    schedulerState.endDateTime = end;
+    schedulerState.selectedDate = new Date(start);
+    schedulerState.selectedDate.setHours(0, 0, 0, 0);
+    updateReservationSummary();
+    return true;
+}
+
 function applyTimeSelection() {
     const start = getSelectedDateTimeFromInputs("start");
     const end = getSelectedDateTimeFromInputs("end");
@@ -149,6 +213,7 @@ function applyTimeSelection() {
     schedulerState.startDateTime = start;
     schedulerState.endDateTime = end;
     updateReservationSummary();
+    syncManualInputsFromState();
     schedulerState.modal.hide();
     return true;
 }
@@ -182,6 +247,18 @@ function initSchedulerModal() {
         } else {
             applyTimeSelection();
         }
+    });
+
+    document.getElementById("manualDate").addEventListener("change", () => {
+        applyManualDateTimeInputs();
+    });
+
+    document.getElementById("manualStartTime").addEventListener("change", () => {
+        applyManualDateTimeInputs();
+    });
+
+    document.getElementById("manualEndTime").addEventListener("change", () => {
+        applyManualDateTimeInputs();
     });
 
     updateReservationSummary();
@@ -248,6 +325,10 @@ async function createReservation(event) {
     const token = getToken();
     if (!token) return;
 
+    if (!applyManualDateTimeInputs()) {
+        return;
+    }
+
     const roomID = document.getElementById("roomSelect").value;
     const startTime = schedulerState.startDateTime;
     const endTime = schedulerState.endDateTime;
@@ -276,6 +357,7 @@ async function createReservation(event) {
         return;
     }
 
+    syncManualInputsFromState();
     fetchReservations();
 }
 

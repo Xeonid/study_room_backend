@@ -17,7 +17,22 @@
     <div class="border rounded p-3 bg-light">
         <label class="form-label fw-semibold mb-2">Reservation time</label>
         <div id="reservationSummary" class="small text-muted mb-2">No date and time selected yet.</div>
+        <div class="row g-2 mb-2">
+            <div class="col-12">
+                <label for="manualDate" class="form-label mb-1">Date</label>
+                <input type="date" id="manualDate" class="form-control">
+            </div>
+            <div class="col-12 col-md-6">
+                <label for="manualStartTime" class="form-label mb-1">Start time</label>
+                <input type="time" id="manualStartTime" class="form-control" step="600">
+            </div>
+            <div class="col-12 col-md-6">
+                <label for="manualEndTime" class="form-label mb-1">End time</label>
+                <input type="time" id="manualEndTime" class="form-control" step="600">
+            </div>
+        </div>
         <button type="button" id="openSchedulerBtn" class="btn btn-outline-primary btn-sm">Choose date & time</button>
+        <div class="small text-muted mt-2">You can either type date/time manually or use the scheduler.</div>
     </div>
 
     <button class="btn btn-primary mt-2">Reserve Room</button>
