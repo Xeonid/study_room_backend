@@ -12,20 +12,179 @@ async function writeJSON(res) {
     }
 }
 
-// -------------------- Initialize Flatpickr --------------------
-function initPickers() {
-    flatpickr("#startPicker", {
-        enableTime: true,
-        dateFormat: "Y-m-d H:i",
-        minuteIncrement: 5,
-        allowInput: false
+// -------------------- Reservation Scheduler State --------------------
+const schedulerState = {
+    selectedDate: null,
+    startDateTime: null,
+    endDateTime: null,
+    calendar: null,
+    modal: null
+};
+
+function createOption(value, label) {
+    const option = document.createElement("option");
+    option.value = String(value);
+    option.textContent = label;
+    return option;
+}
+
+function initTimeSelectOptions() {
+    const hourSelectIDs = ["startHour", "endHour"];
+    const minuteSelectIDs = ["startMinute", "endMinute"];
+
+    hourSelectIDs.forEach(id => {
+        const select = document.getElementById(id);
+        select.innerHTML = "";
+        for (let hour = 0; hour < 24; hour += 1) {
+            const label = String(hour).padStart(2, "0");
+            select.appendChild(createOption(hour, label));
+        }
     });
-    flatpickr("#endPicker", {
-        enableTime: true,
-        dateFormat: "Y-m-d H:i",
-        minuteIncrement: 5,
-        allowInput: false
+
+    minuteSelectIDs.forEach(id => {
+        const select = document.getElementById(id);
+        select.innerHTML = "";
+        for (let min = 0; min < 60; min += 10) {
+            const label = String(min).padStart(2, "0");
+            select.appendChild(createOption(min, label));
+        }
     });
+}
+
+function showCalendarStep() {
+    document.getElementById("schedulerTitle").textContent = "Choose reservation date";
+    document.getElementById("calendarStep").classList.remove("d-none");
+    document.getElementById("timeStep").classList.add("d-none");
+
+    const backBtn = document.getElementById("schedulerBackBtn");
+    const nextBtn = document.getElementById("schedulerNextBtn");
+
+    backBtn.classList.add("d-none");
+    nextBtn.textContent = "Next";
+    nextBtn.disabled = !schedulerState.selectedDate;
+}
+
+function getSelectedDateTimeFromInputs(prefix) {
+    if (!schedulerState.selectedDate) {
+        return null;
+    }
+
+    const hour = Number(document.getElementById(`${prefix}Hour`).value);
+    const minute = Number(document.getElementById(`${prefix}Minute`).value);
+
+    const dt = new Date(schedulerState.selectedDate);
+    dt.setHours(hour, minute, 0, 0);
+    return dt;
+}
+
+function syncSchedulerDateLabel() {
+    const label = document.getElementById("selectedDateLabel");
+    if (!schedulerState.selectedDate) {
+        label.textContent = "No date selected";
+        return;
+    }
+
+    label.textContent = `Reservation date: ${schedulerState.selectedDate.toLocaleDateString()}`;
+}
+
+function prefillTimeInputsIfChosen() {
+    if (!schedulerState.startDateTime || !schedulerState.endDateTime) {
+        document.getElementById("startHour").value = "9";
+        document.getElementById("startMinute").value = "0";
+        document.getElementById("endHour").value = "10";
+        document.getElementById("endMinute").value = "0";
+        return;
+    }
+
+    document.getElementById("startHour").value = String(schedulerState.startDateTime.getHours());
+    document.getElementById("startMinute").value = String(schedulerState.startDateTime.getMinutes());
+    document.getElementById("endHour").value = String(schedulerState.endDateTime.getHours());
+    document.getElementById("endMinute").value = String(schedulerState.endDateTime.getMinutes());
+}
+
+function showTimeStep() {
+    document.getElementById("schedulerTitle").textContent = "Choose start and end time";
+    document.getElementById("calendarStep").classList.add("d-none");
+    document.getElementById("timeStep").classList.remove("d-none");
+
+    const backBtn = document.getElementById("schedulerBackBtn");
+    const nextBtn = document.getElementById("schedulerNextBtn");
+
+    backBtn.classList.remove("d-none");
+    nextBtn.textContent = "Apply";
+    nextBtn.disabled = false;
+
+    syncSchedulerDateLabel();
+    prefillTimeInputsIfChosen();
+}
+
+function updateReservationSummary() {
+    const summary = document.getElementById("reservationSummary");
+    if (!schedulerState.startDateTime || !schedulerState.endDateTime) {
+        summary.textContent = "No date and time selected yet.";
+        summary.classList.add("text-muted");
+        return;
+    }
+
+    const start = schedulerState.startDateTime;
+    const end = schedulerState.endDateTime;
+    summary.textContent = `${start.toLocaleDateString()} · ${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")} to ${String(end.getHours()).padStart(2, "0")}:${String(end.getMinutes()).padStart(2, "0")}`;
+    summary.classList.remove("text-muted");
+}
+
+function applyTimeSelection() {
+    const start = getSelectedDateTimeFromInputs("start");
+    const end = getSelectedDateTimeFromInputs("end");
+
+    if (!start || !end) {
+        alert("Please choose reservation date and times.");
+        return false;
+    }
+
+    if (end <= start) {
+        alert("End time must be after start time.");
+        return false;
+    }
+
+    schedulerState.startDateTime = start;
+    schedulerState.endDateTime = end;
+    updateReservationSummary();
+    schedulerState.modal.hide();
+    return true;
+}
+
+function initSchedulerModal() {
+    initTimeSelectOptions();
+
+    schedulerState.modal = new bootstrap.Modal(document.getElementById("schedulerModal"));
+
+    schedulerState.calendar = flatpickr("#calendarContainer", {
+        inline: true,
+        minDate: "today",
+        dateFormat: "Y-m-d",
+        onChange(selectedDates) {
+            schedulerState.selectedDate = selectedDates[0] || null;
+            document.getElementById("schedulerNextBtn").disabled = !schedulerState.selectedDate;
+        }
+    });
+
+    document.getElementById("openSchedulerBtn").addEventListener("click", () => {
+        showCalendarStep();
+        schedulerState.modal.show();
+    });
+
+    document.getElementById("schedulerBackBtn").addEventListener("click", showCalendarStep);
+
+    document.getElementById("schedulerNextBtn").addEventListener("click", () => {
+        const title = document.getElementById("schedulerTitle").textContent;
+        if (title === "Choose reservation date") {
+            showTimeStep();
+        } else {
+            applyTimeSelection();
+        }
+    });
+
+    updateReservationSummary();
 }
 
 // -------------------- Fetch Rooms --------------------
@@ -90,11 +249,11 @@ async function createReservation(event) {
     if (!token) return;
 
     const roomID = document.getElementById("roomSelect").value;
-    const startTime = document.getElementById("startPicker")._flatpickr.selectedDates[0];
-    const endTime = document.getElementById("endPicker")._flatpickr.selectedDates[0];
+    const startTime = schedulerState.startDateTime;
+    const endTime = schedulerState.endDateTime;
 
     if (!startTime || !endTime) {
-        alert("Please select start and end times");
+        alert("Please choose date and times first.");
         return;
     }
 
@@ -147,7 +306,7 @@ function initDashboard() {
         return;
     }
 
-    initPickers();
+    initSchedulerModal();
     fetchRooms();
     fetchReservations();
 
