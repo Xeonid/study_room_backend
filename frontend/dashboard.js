@@ -264,6 +264,8 @@ function initSchedulerModal() {
     updateReservationSummary();
 }
 
+const roomNameByID = new Map();
+
 // -------------------- Fetch Rooms --------------------
 async function fetchRooms() {
     const token = getToken();
@@ -277,7 +279,10 @@ async function fetchRooms() {
     const select = document.getElementById("roomSelect");
     select.innerHTML = "";
 
+    roomNameByID.clear();
     rooms.forEach(room => {
+        roomNameByID.set(Number(room.id), room.name);
+
         const option = document.createElement("option");
         option.value = room.id;
         option.textContent = `${room.name} (Capacity: ${room.capacity})`;
@@ -307,7 +312,7 @@ async function fetchReservations() {
         const tr = document.createElement("tr");
         tr.innerHTML = `
             <td>${r.id}</td>
-            <td>${r.room_name || r.room || `Room #${r.room_id}`}</td>
+            <td>${r.room_name || r.room || roomNameByID.get(Number(r.room_id)) || `Room #${r.room_id}`}</td>
             <td>${new Date(r.start_time).toLocaleString()}</td>
             <td>${new Date(r.end_time).toLocaleString()}</td>
             <td>${r.status}</td>
