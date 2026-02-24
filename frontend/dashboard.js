@@ -299,7 +299,41 @@ async function fetchReservations() {
     tbody.innerHTML = "";
 
     if (!data || data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center">No reservations yet</td></tr>`;
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="py-4">
+                    <div class="alert alert-info mb-0" role="status">
+                        <h4 class="alert-heading h6 mb-2">No reservations yet</h4>
+                        <p class="mb-2">Get started by creating your first booking in three quick steps:</p>
+                        <ol class="mb-3 ps-3">
+                            <li>Choose a room.</li>
+                            <li>Pick your reservation date and time.</li>
+                            <li>Click <strong>Reserve Room</strong>.</li>
+                        </ol>
+                        <button type="button" class="btn btn-primary btn-sm" id="createFirstReservationBtn">Create first reservation</button>
+                    </div>
+                </td>
+            </tr>
+        `;
+
+        const createBtn = document.getElementById("createFirstReservationBtn");
+        createBtn?.addEventListener("click", () => {
+            const form = document.getElementById("reservationForm");
+            const schedulerBtn = document.getElementById("openSchedulerBtn");
+            const focusTarget = form || schedulerBtn;
+
+            if (!focusTarget) {
+                return;
+            }
+
+            focusTarget.scrollIntoView({ behavior: "smooth", block: "center" });
+            if (focusTarget === form) {
+                schedulerBtn?.focus();
+                return;
+            }
+
+            focusTarget.focus();
+        });
         return;
     }
 
