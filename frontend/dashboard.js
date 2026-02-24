@@ -280,6 +280,10 @@ async function fetchRooms() {
     select.innerHTML = "";
 
     roomNameByID.clear();
+    if (!Array.isArray(rooms)) {
+        return;
+    }
+
     rooms.forEach(room => {
         roomNameByID.set(Number(room.id), room.name);
 
@@ -302,6 +306,10 @@ async function fetchReservations() {
     const data = await writeJSON(res);
     const tbody = document.querySelector("#reservationsTable tbody");
     tbody.innerHTML = "";
+
+    if (roomNameByID.size === 0) {
+        await fetchRooms();
+    }
 
     if (!data || data.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" class="text-center">No reservations yet</td></tr>`;
@@ -363,7 +371,7 @@ async function createReservation(event) {
     }
 
     syncManualInputsFromState();
-    fetchReservations();
+    await fetchReservations();
 }
 
 // -------------------- Delete Reservation --------------------
@@ -382,11 +390,11 @@ async function deleteReservation(resID) {
         return;
     }
 
-    fetchReservations();
+    await fetchReservations();
 }
 
 // -------------------- Init Dashboard --------------------
-function initDashboard() {
+async function initDashboard() {
     const token = getToken();
     if (!token) {
         location.href = "index.html";
@@ -394,8 +402,8 @@ function initDashboard() {
     }
 
     initSchedulerModal();
-    fetchRooms();
-    fetchReservations();
+    await fetchRooms();
+    await fetchReservations();
 
     document.getElementById("reservationForm").addEventListener("submit", createReservation);
 }
