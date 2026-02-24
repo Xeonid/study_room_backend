@@ -36,7 +36,14 @@ CREATE TABLE IF NOT EXISTS reservations (
 -- Room Naming Migration
 -- ------------------------
 UPDATE rooms
-SET name = 'Dr. Volt''s Reactor Bay #' || id
+SET name = CASE name
+               WHEN 'Room 101' THEN 'ChronoSpark Reactor 101'
+               WHEN 'Room 102' THEN 'Neon Nebula Lab 102'
+               WHEN 'Room A' THEN 'Antimatter Annex Alpha'
+               WHEN 'Room B' THEN 'Biohazard Brainstorm Beta'
+               WHEN 'Room C' THEN 'CryoCore Chamber Gamma'
+               ELSE 'Dr. Volt''s Reactor Bay #' || id
+    END
 WHERE name GLOB 'Room *';
 
 -- ------------------------

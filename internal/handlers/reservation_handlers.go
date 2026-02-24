@@ -71,8 +71,9 @@ func (h *ReservationHandler) GetReservations(w http.ResponseWriter, r *http.Requ
 	userID := r.Context().Value(middleware.UserIDKey).(int)
 
 	rows, err := h.DB.Query(`
-		SELECT id, room_id, start_time, end_time, status
+		SELECT reservations.id, reservations.room_id, rooms.name, reservations.start_time, reservations.end_time, reservations.status
 		FROM reservations
+		JOIN rooms ON reservations.room_id = rooms.id
 		WHERE user_id = ?
 	`, userID)
 	if err != nil {
@@ -84,13 +85,15 @@ func (h *ReservationHandler) GetReservations(w http.ResponseWriter, r *http.Requ
 	var reservations []map[string]interface{}
 	for rows.Next() {
 		var id, roomID int
+		var roomName string
 		var start, end time.Time
 		var status string
-		rows.Scan(&id, &roomID, &start, &end, &status)
+		rows.Scan(&id, &roomID, &roomName, &start, &end, &status)
 
 		reservations = append(reservations, map[string]interface{}{
 			"id":         id,
 			"room_id":    roomID,
+			"room_name":  roomName,
 			"start_time": start,
 			"end_time":   end,
 			"status":     status,
