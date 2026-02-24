@@ -21,6 +21,8 @@ const schedulerState = {
     modal: null
 };
 
+const roomNameByID = new Map();
+
 function createOption(value, label) {
     const option = document.createElement("option");
     option.value = String(value);
@@ -276,13 +278,41 @@ async function fetchRooms() {
     const rooms = await writeJSON(res);
     const select = document.getElementById("roomSelect");
     select.innerHTML = "";
+    roomNameByID.clear();
+
+    if (!Array.isArray(rooms)) {
+        return;
+    }
 
     rooms.forEach(room => {
+        roomNameByID.set(room.id, room.name);
         const option = document.createElement("option");
         option.value = room.id;
         option.textContent = `${room.name} (Capacity: ${room.capacity})`;
         select.appendChild(option);
     });
+}
+
+function renderNextReservation(reservations) {
+    const panel = document.getElementById("nextReservationPanel");
+    if (!panel) return;
+
+    const now = Date.now();
+    const nextReservation = reservations
+        .filter(r => new Date(r.start_time).getTime() > now)
+        .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))[0];
+
+    if (!nextReservation) {
+        panel.innerHTML = `<div class="text-muted small">No upcoming reservations.</div>`;
+        return;
+    }
+
+    const roomName = roomNameByID.get(nextReservation.room_id) || `Room #${nextReservation.room_id}`;
+    panel.innerHTML = `
+        <div class="fw-semibold mb-1">${roomName}</div>
+        <div class="small text-muted">Start: ${new Date(nextReservation.start_time).toLocaleString()}</div>
+        <div class="small text-muted">End: ${new Date(nextReservation.end_time).toLocaleString()}</div>
+    `;
 }
 
 // -------------------- Fetch Reservations --------------------
@@ -300,14 +330,16 @@ async function fetchReservations() {
 
     if (!data || data.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" class="text-center">No reservations yet</td></tr>`;
+        renderNextReservation([]);
         return;
     }
 
     data.forEach(r => {
+        const roomName = roomNameByID.get(r.room_id) || r.room_id;
         const tr = document.createElement("tr");
         tr.innerHTML = `
             <td>${r.id}</td>
-            <td>${r.room_id}</td>
+            <td>${roomName}</td>
             <td>${new Date(r.start_time).toLocaleString()}</td>
             <td>${new Date(r.end_time).toLocaleString()}</td>
             <td>${r.status}</td>
@@ -317,6 +349,8 @@ async function fetchReservations() {
         `;
         tbody.appendChild(tr);
     });
+
+    renderNextReservation(data);
 }
 
 // -------------------- Create Reservation --------------------

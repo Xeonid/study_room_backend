@@ -48,25 +48,34 @@
         </div>
 
         <div class="col-12 col-lg-7">
-            <div class="card h-100">
-                <div class="card-body">
-                    <!-- -------------------- Reservations Table -------------------- -->
-                    <h3>My Reservations</h3>
-                    <table id="reservationsTable" class="table table-striped mb-0">
-                        <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Room</th>
-                            <th>Start</th>
-                            <th>End</th>
-                            <th>Status</th>
-                            <th>Action</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        <!-- JS will populate -->
-                        </tbody>
-                    </table>
+            <div class="d-flex flex-column gap-3 h-100">
+                <div class="card">
+                    <div class="card-body">
+                        <h3 class="h5 mb-2">Next reservation</h3>
+                        <div id="nextReservationPanel" class="small text-muted">Loading...</div>
+                    </div>
+                </div>
+
+                <div class="card flex-grow-1">
+                    <div class="card-body">
+                        <!-- -------------------- Reservations Table -------------------- -->
+                        <h3>My Reservations</h3>
+                        <table id="reservationsTable" class="table table-striped mb-0">
+                            <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Room</th>
+                                <th>Start</th>
+                                <th>End</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <!-- JS will populate -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
