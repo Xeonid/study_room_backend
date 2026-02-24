@@ -264,6 +264,8 @@ function initSchedulerModal() {
     updateReservationSummary();
 }
 
+const roomNameByID = new Map();
+
 // -------------------- Fetch Rooms --------------------
 async function fetchRooms() {
     const token = getToken();
@@ -277,7 +279,14 @@ async function fetchRooms() {
     const select = document.getElementById("roomSelect");
     select.innerHTML = "";
 
+    roomNameByID.clear();
+    if (!Array.isArray(rooms)) {
+        return;
+    }
+
     rooms.forEach(room => {
+        roomNameByID.set(Number(room.id), room.name);
+
         const option = document.createElement("option");
         option.value = room.id;
         option.textContent = `${room.name} (Capacity: ${room.capacity})`;
@@ -298,6 +307,10 @@ async function fetchReservations() {
     const tbody = document.querySelector("#reservationsTable tbody");
     tbody.innerHTML = "";
 
+    if (roomNameByID.size === 0) {
+        await fetchRooms();
+    }
+
     if (!data || data.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" class="text-center">No reservations yet</td></tr>`;
         return;
@@ -307,7 +320,7 @@ async function fetchReservations() {
         const tr = document.createElement("tr");
         tr.innerHTML = `
             <td>${r.id}</td>
-            <td>${r.room_id}</td>
+            <td>${r.room_name || r.room || roomNameByID.get(Number(r.room_id)) || `Room #${r.room_id}`}</td>
             <td>${new Date(r.start_time).toLocaleString()}</td>
             <td>${new Date(r.end_time).toLocaleString()}</td>
             <td>${r.status}</td>
@@ -358,7 +371,7 @@ async function createReservation(event) {
     }
 
     syncManualInputsFromState();
-    fetchReservations();
+    await fetchReservations();
 }
 
 // -------------------- Delete Reservation --------------------
@@ -377,11 +390,11 @@ async function deleteReservation(resID) {
         return;
     }
 
-    fetchReservations();
+    await fetchReservations();
 }
 
 // -------------------- Init Dashboard --------------------
-function initDashboard() {
+async function initDashboard() {
     const token = getToken();
     if (!token) {
         location.href = "index.html";
@@ -389,8 +402,8 @@ function initDashboard() {
     }
 
     initSchedulerModal();
-    fetchRooms();
-    fetchReservations();
+    await fetchRooms();
+    await fetchReservations();
 
     document.getElementById("reservationForm").addEventListener("submit", createReservation);
 }

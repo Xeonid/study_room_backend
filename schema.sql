@@ -33,9 +33,43 @@ CREATE TABLE IF NOT EXISTS reservations (
 );
 
 -- ------------------------
+-- Room Naming Migration
+-- ------------------------
+UPDATE rooms
+SET name = (
+               CASE (id % 7)
+                   WHEN 0 THEN 'Tesla Coil Test Chamber'
+                   WHEN 1 THEN 'Professor Neutrino''s Think Tank'
+                   WHEN 2 THEN 'Quantum Pickle Containment Lab'
+                   WHEN 3 THEN 'ChronoSpark Reactor'
+                   WHEN 4 THEN 'Neon Nebula Lab'
+                   WHEN 5 THEN 'Antimatter Annex'
+                   ELSE 'CryoCore Chamber'
+                   END
+               ) || ' #' || id
+WHERE name GLOB 'Room *'
+   OR name LIKE 'Dr. Volt''s Reactor Bay%'
+   OR name IN (
+              'ChronoSpark Reactor 101',
+              'Neon Nebula Lab 102',
+              'Antimatter Annex Alpha',
+              'Biohazard Brainstorm Beta',
+              'CryoCore Chamber Gamma',
+              'Tesla Coil Test Chamber',
+              'Professor Neutrino''s Think Tank',
+              'Quantum Pickle Containment Lab'
+   );
+
+-- ------------------------
 -- Sample Data
 -- ------------------------
-INSERT INTO rooms (name, capacity) VALUES
-                                       ('Room A', 4),
-                                       ('Room B', 6),
-                                       ('Room C', 2);
+INSERT INTO rooms (name, capacity)
+SELECT name, capacity
+FROM (
+         SELECT 'Tesla Coil Test Chamber #1' AS name, 4 AS capacity
+         UNION ALL
+         SELECT 'Professor Neutrino''s Think Tank #2', 6
+         UNION ALL
+         SELECT 'Quantum Pickle Containment Lab #3', 2
+     ) seeded_rooms
+WHERE NOT EXISTS (SELECT 1 FROM rooms);
