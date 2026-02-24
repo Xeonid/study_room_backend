@@ -104,7 +104,7 @@
 </head>
 <body>
 <h1>Study Room – Paper Prototype</h1>
-<p class="subtitle">Sketch style wireframe of core flows (login, registration, and dashboard)</p>
+<p class="subtitle">Sketch style wireframe of core flows (auth, dashboard, time selection, reserved rooms)</p>
 
 <main class="board">
     <section class="screen" style="--rotation: -1.6deg;">
@@ -142,12 +142,37 @@
         <p class="arrow">⇩</p>
         <small>Primary workspace for students/admin.</small>
     </section>
+
+    <section class="screen" style="--rotation: 1.5deg;">
+        <h2>4) Time Choosing</h2>
+        <div class="box">[ Pick date ]</div>
+        <div class="box">[ Start time ]</div>
+        <div class="box">[ End time ]</div>
+        <div class="box">[ Duration preview ]</div>
+        <span class="btn">Check Availability</span>
+        <span class="btn">Confirm Slot</span>
+        <p class="arrow">⇩</p>
+        <small>Choose a study schedule before creating or joining sessions.</small>
+    </section>
+
+    <section class="screen" style="--rotation: -1.1deg;">
+        <h2>5) Reserved Rooms</h2>
+        <div class="box">[ My bookings list ]</div>
+        <div class="box">[ Room name + timeslot ]</div>
+        <div class="box">[ Status: upcoming / active / completed ]</div>
+        <div class="box">[ Quick actions: Edit / Cancel ]</div>
+        <span class="btn">View Details</span>
+        <span class="btn">Reserve Another</span>
+        <p class="arrow">⇩</p>
+        <small>Track upcoming reservations and manage booking changes.</small>
+    </section>
 </main>
 
 <section class="legend">
     <strong>Prototype Notes:</strong>
     <ul>
         <li>Hand-drawn aesthetic helps with early-stage feedback before polished UI work.</li>
+        <li>Panels now include schedule selection and reserved room management views.</li>
         <li>Each panel maps directly to pages already present in this project.</li>
         <li>Use this as a planning artifact for user flow reviews.</li>
     </ul>
