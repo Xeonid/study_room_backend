@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Study Room Paper Prototype</title>
+    <style>
+        :root {
+            --ink: #232323;
+            --paper: #f8f3df;
+            --accent: #4a5cff;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background:
+                linear-gradient(transparent 31px, rgba(25, 25, 25, 0.08) 32px),
+                linear-gradient(90deg, transparent 31px, rgba(25, 25, 25, 0.08) 32px),
+                var(--paper);
+            background-size: 32px 32px;
+            color: var(--ink);
+            font-family: "Comic Sans MS", "Chalkboard SE", "Bradley Hand", cursive;
+            padding: 28px;
+        }
+
+        h1 {
+            text-align: center;
+            margin: 0 0 8px;
+            font-size: clamp(2rem, 4vw, 2.8rem);
+            text-decoration: underline;
+            text-decoration-style: wavy;
+            text-decoration-color: var(--accent);
+        }
+
+        .subtitle {
+            text-align: center;
+            margin: 0 0 26px;
+            font-size: 1.15rem;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 22px;
+            max-width: 1180px;
+            margin: 0 auto;
+        }
+
+        .screen {
+            background: rgba(255, 255, 255, 0.55);
+            border: 3px solid var(--ink);
+            border-radius: 18px 22px 14px 20px;
+            padding: 14px;
+            transform: rotate(var(--rotation));
+            box-shadow: 4px 5px 0 rgba(0, 0, 0, 0.22);
+        }
+
+        .screen h2 {
+            margin: 0 0 10px;
+            font-size: 1.45rem;
+            border-bottom: 2px dashed var(--ink);
+            padding-bottom: 8px;
+        }
+
+        .box {
+            border: 2px dashed var(--ink);
+            border-radius: 12px;
+            padding: 10px;
+            min-height: 34px;
+            margin-bottom: 8px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 4px 16px;
+            border: 2px solid var(--ink);
+            border-radius: 999px;
+            background: #fff;
+            font-weight: 700;
+            margin: 4px 4px 0 0;
+        }
+
+        .arrow {
+            font-size: 1.9rem;
+            text-align: center;
+            font-weight: 900;
+            color: var(--accent);
+            margin-top: 8px;
+        }
+
+        .legend {
+            max-width: 1180px;
+            margin: 24px auto 0;
+            border-top: 3px double var(--ink);
+            padding-top: 12px;
+            font-size: 1rem;
+        }
+
+        .legend ul { margin: 8px 0; }
+    </style>
+</head>
+<body>
+<h1>Study Room – Paper Prototype</h1>
+<p class="subtitle">Sketch style wireframe of core flows (login, registration, and dashboard)</p>
+
+<main class="board">
+    <section class="screen" style="--rotation: -1.6deg;">
+        <h2>1) Auth Landing</h2>
+        <div class="box">[ Study Room Portal title ]</div>
+        <div class="box">[ Tabs: Login | Register ]</div>
+        <div class="box">[ Email input ]</div>
+        <div class="box">[ Password input ]</div>
+        <span class="btn">Login</span>
+        <span class="btn">Go Register</span>
+        <p class="arrow">⇩</p>
+        <small>User chooses login or register.</small>
+    </section>
+
+    <section class="screen" style="--rotation: 1.1deg;">
+        <h2>2) Register View</h2>
+        <div class="box">[ Name input ]</div>
+        <div class="box">[ Email input ]</div>
+        <div class="box">[ Password input ]</div>
+        <div class="box">[ Role: Student / Admin ]</div>
+        <span class="btn">Register</span>
+        <span class="btn">Back to Login</span>
+        <p class="arrow">⇩</p>
+        <small>Show success message + redirect to dashboard after sign in.</small>
+    </section>
+
+    <section class="screen" style="--rotation: -0.8deg;">
+        <h2>3) Dashboard</h2>
+        <div class="box">[ Welcome: {name} ]</div>
+        <div class="box">[ Role badge ]</div>
+        <div class="box">[ Study Room list / cards ]</div>
+        <div class="box">[ Create / Join room actions ]</div>
+        <span class="btn">Open Room</span>
+        <span class="btn">Logout</span>
+        <p class="arrow">⇩</p>
+        <small>Primary workspace for students/admin.</small>
+    </section>
+</main>
+
+<section class="legend">
+    <strong>Prototype Notes:</strong>
+    <ul>
+        <li>Hand-drawn aesthetic helps with early-stage feedback before polished UI work.</li>
+        <li>Each panel maps directly to pages already present in this project.</li>
+        <li>Use this as a planning artifact for user flow reviews.</li>
+    </ul>
+</section>
+</body>
+</html>
