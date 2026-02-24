@@ -88,16 +88,25 @@ func (h *ReservationHandler) GetReservations(w http.ResponseWriter, r *http.Requ
 		var roomName string
 		var start, end time.Time
 		var status string
-		rows.Scan(&id, &roomID, &roomName, &start, &end, &status)
+		if err := rows.Scan(&id, &roomID, &roomName, &start, &end, &status); err != nil {
+			http.Error(w, "Failed to parse reservations", http.StatusInternalServerError)
+			return
+		}
 
 		reservations = append(reservations, map[string]interface{}{
 			"id":         id,
 			"room_id":    roomID,
 			"room_name":  roomName,
+			"room":       roomName,
 			"start_time": start,
 			"end_time":   end,
 			"status":     status,
 		})
+	}
+
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Failed to fetch reservations", http.StatusInternalServerError)
+		return
 	}
 
 	writeJSON(w, http.StatusOK, reservations)

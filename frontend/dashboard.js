@@ -307,7 +307,7 @@ async function fetchReservations() {
         const tr = document.createElement("tr");
         tr.innerHTML = `
             <td>${r.id}</td>
-            <td>${r.room_name || `Room #${r.room_id}`}</td>
+            <td>${r.room_name || r.room || `Room #${r.room_id}`}</td>
             <td>${new Date(r.start_time).toLocaleString()}</td>
             <td>${new Date(r.end_time).toLocaleString()}</td>
             <td>${r.status}</td>
