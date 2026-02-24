@@ -104,7 +104,7 @@
 </head>
 <body>
 <h1>Study Room – Paper Prototype</h1>
-<p class="subtitle">Sketch style wireframe of core flows (auth, dashboard, time selection, reserved rooms)</p>
+<p class="subtitle">Sketch style wireframe of core flows (auth, reservations, and key error scenarios)</p>
 
 <main class="board">
     <section class="screen" style="--rotation: -1.6deg;">
@@ -166,6 +166,40 @@
         <p class="arrow">⇩</p>
         <small>Track upcoming reservations and manage booking changes.</small>
     </section>
+
+
+    <section class="screen" style="--rotation: 0.9deg;">
+        <h2>6) Auth Errors</h2>
+        <div class="box">[ Error banner: Wrong password ]</div>
+        <div class="box">[ Error banner: User not found ]</div>
+        <div class="box">[ Suggestion: Reset password or Register ]</div>
+        <span class="btn">Try Again</span>
+        <span class="btn">Forgot Password</span>
+        <p class="arrow">⇩</p>
+        <small>Common login failures are clearly surfaced with recovery options.</small>
+    </section>
+
+    <section class="screen" style="--rotation: -1.4deg;">
+        <h2>7) Booking Conflict Error</h2>
+        <div class="box">[ Conflict: Room date/time already booked ]</div>
+        <div class="box">[ Show conflicting slot details ]</div>
+        <div class="box">[ Suggest alternative available time ]</div>
+        <span class="btn">Pick Another Time</span>
+        <span class="btn">Choose Different Room</span>
+        <p class="arrow">⇩</p>
+        <small>Prevents double-booking and guides users to valid options.</small>
+    </section>
+
+    <section class="screen" style="--rotation: 1.3deg;">
+        <h2>8) Validation & System Errors</h2>
+        <div class="box">[ Missing fields / invalid time range ]</div>
+        <div class="box">[ Session expired / please login again ]</div>
+        <div class="box">[ Network/server error + retry hint ]</div>
+        <span class="btn">Retry</span>
+        <span class="btn">Back to Dashboard</span>
+        <p class="arrow">⇩</p>
+        <small>Fallback panel for edge cases across auth and reservation flows.</small>
+    </section>
 </main>
 
 <section class="legend">
@@ -173,6 +207,7 @@
     <ul>
         <li>Hand-drawn aesthetic helps with early-stage feedback before polished UI work.</li>
         <li>Panels now include schedule selection and reserved room management views.</li>
+        <li>Error-state panels cover wrong password, user not found, and booking conflicts.</li>
         <li>Each panel maps directly to pages already present in this project.</li>
         <li>Use this as a planning artifact for user flow reviews.</li>
     </ul>
