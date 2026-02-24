@@ -297,12 +297,32 @@ function normalizeReservations(data) {
         return data;
     }
 
-    if (Array.isArray(data?.reservations)) {
+    if (!data || typeof data !== "object") {
+        return [];
+    }
+
+    if (Array.isArray(data.reservations)) {
         return data.reservations;
     }
 
-    if (Array.isArray(data?.data)) {
+    if (Array.isArray(data.data)) {
         return data.data;
+    }
+
+    if (typeof data.data === "string") {
+        try {
+            const parsed = JSON.parse(data.data);
+            if (Array.isArray(parsed)) {
+                return parsed;
+            }
+        } catch (err) {
+            console.warn("Failed to parse string payload for reservations", err);
+        }
+    }
+
+    const values = Object.values(data);
+    if (values.length > 0 && values.every(item => item && typeof item === "object")) {
+        return values;
     }
 
     return [];
@@ -321,8 +341,14 @@ async function fetchReservations() {
     }
 
     const res = await fetch("/api/reservations", {
-        headers: { "Authorization": "Bearer " + token }
+        headers: { "Authorization": "Bearer " + token },
+        cache: "no-store"
     });
+
+    if (!res.ok) {
+        updateReservationStats(0, 0, 0);
+        return;
+    }
 
     const data = await writeJSON(res);
     const tbody = document.querySelector("#reservationsTable tbody");
