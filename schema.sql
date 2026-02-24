@@ -33,9 +33,16 @@ CREATE TABLE IF NOT EXISTS reservations (
 );
 
 -- ------------------------
+-- Room Naming Migration
+-- ------------------------
+UPDATE rooms
+SET name = 'Dr. Volt''s Reactor Bay #' || id
+WHERE name GLOB 'Room *';
+
+-- ------------------------
 -- Sample Data
 -- ------------------------
 INSERT INTO rooms (name, capacity) VALUES
-                                       ('Room A', 4),
-                                       ('Room B', 6),
-                                       ('Room C', 2);
+                                       ('Tesla Coil Test Chamber', 4),
+                                       ('Professor Neutrino''s Think Tank', 6),
+                                       ('Quantum Pickle Containment Lab', 2);
