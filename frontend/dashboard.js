@@ -286,9 +286,39 @@ async function fetchRooms() {
 }
 
 // -------------------- Fetch Reservations --------------------
+function updateReservationStats(total, upcoming, active) {
+    document.getElementById("statTotalReservations").textContent = String(total);
+    document.getElementById("statUpcomingReservations").textContent = String(upcoming);
+    document.getElementById("statActiveReservations").textContent = String(active);
+}
+
+function normalizeReservations(data) {
+    if (Array.isArray(data)) {
+        return data;
+    }
+
+    if (Array.isArray(data?.reservations)) {
+        return data.reservations;
+    }
+
+    if (Array.isArray(data?.data)) {
+        return data.data;
+    }
+
+    return [];
+}
+
+function parseReservationDate(value) {
+    const dt = new Date(value);
+    return Number.isNaN(dt.getTime()) ? null : dt;
+}
+
 async function fetchReservations() {
     const token = getToken();
-    if (!token) return;
+    if (!token) {
+        updateReservationStats(0, 0, 0);
+        return;
+    }
 
     const res = await fetch("/api/reservations", {
         headers: { "Authorization": "Bearer " + token }
@@ -298,19 +328,20 @@ async function fetchReservations() {
     const tbody = document.querySelector("#reservationsTable tbody");
     tbody.innerHTML = "";
 
-    const reservations = Array.isArray(data) ? data : [];
+    const reservations = normalizeReservations(data);
     const now = new Date();
     const total = reservations.length;
-    const upcoming = reservations.filter(r => new Date(r.start_time) > now).length;
+    const upcoming = reservations.filter(r => {
+        const start = parseReservationDate(r.start_time);
+        return start && start > now;
+    }).length;
     const active = reservations.filter(r => {
-        const start = new Date(r.start_time);
-        const end = new Date(r.end_time);
-        return start <= now && end >= now;
+        const start = parseReservationDate(r.start_time);
+        const end = parseReservationDate(r.end_time);
+        return start && end && start <= now && end >= now;
     }).length;
 
-    document.getElementById("statTotalReservations").textContent = String(total);
-    document.getElementById("statUpcomingReservations").textContent = String(upcoming);
-    document.getElementById("statActiveReservations").textContent = String(active);
+    updateReservationStats(total, upcoming, active);
 
     if (reservations.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" class="text-center">No reservations yet</td></tr>`;
