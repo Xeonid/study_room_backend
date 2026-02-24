@@ -71,9 +71,9 @@ func (h *ReservationHandler) GetReservations(w http.ResponseWriter, r *http.Requ
 	userID := r.Context().Value(middleware.UserIDKey).(int)
 
 	rows, err := h.DB.Query(`
-		SELECT reservations.id, reservations.room_id, rooms.name, reservations.start_time, reservations.end_time, reservations.status
+		SELECT reservations.id, reservations.room_id, COALESCE(rooms.name, 'Room #' || reservations.room_id), reservations.start_time, reservations.end_time, reservations.status
 		FROM reservations
-		JOIN rooms ON reservations.room_id = rooms.id
+		LEFT JOIN rooms ON reservations.room_id = rooms.id
 		WHERE user_id = ?
 	`, userID)
 	if err != nil {
