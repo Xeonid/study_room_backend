@@ -298,12 +298,26 @@ async function fetchReservations() {
     const tbody = document.querySelector("#reservationsTable tbody");
     tbody.innerHTML = "";
 
-    if (!data || data.length === 0) {
+    const reservations = Array.isArray(data) ? data : [];
+    const now = new Date();
+    const total = reservations.length;
+    const upcoming = reservations.filter(r => new Date(r.start_time) > now).length;
+    const active = reservations.filter(r => {
+        const start = new Date(r.start_time);
+        const end = new Date(r.end_time);
+        return start <= now && end >= now;
+    }).length;
+
+    document.getElementById("statTotalReservations").textContent = String(total);
+    document.getElementById("statUpcomingReservations").textContent = String(upcoming);
+    document.getElementById("statActiveReservations").textContent = String(active);
+
+    if (reservations.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" class="text-center">No reservations yet</td></tr>`;
         return;
     }
 
-    data.forEach(r => {
+    reservations.forEach(r => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
             <td>${r.id}</td>
