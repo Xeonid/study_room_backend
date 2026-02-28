@@ -56,11 +56,45 @@
             font-size: 13px;
         }
         .print-btn { margin-top: 10px; }
+        .scenarios {
+            margin-top: 14px;
+            border: 1px solid #222;
+            border-radius: 6px;
+            padding: 10px;
+            page-break-inside: avoid;
+        }
+        .scenarios h2 {
+            margin: 0 0 8px;
+            font-size: 18px;
+            border-bottom: 1px solid var(--line);
+            padding-bottom: 6px;
+        }
+        .scenarios ul {
+            margin: 0;
+            padding-left: 0;
+            list-style: none;
+            columns: 2;
+            column-gap: 18px;
+        }
+        .scenarios li {
+            margin: 0 0 6px;
+            break-inside: avoid;
+            font-size: 14px;
+        }
+        .checkbox {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 1px solid #111;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
 
         @media print {
             .print-btn { display: none; }
             .page { max-width: none; padding: 10mm; }
             .grid { gap: 10px; }
+            .scenarios ul { columns: 1; }
         }
     </style>
 </head>
@@ -148,6 +182,30 @@
             <p class="actions">Actions: Retry, Back to Dashboard</p>
         </section>
     </main>
+
+
+
+    <section class="scenarios">
+        <h2>Printer-Friendly Prototype Testing Scenarios</h2>
+        <ul>
+            <li><span class="checkbox"></span>Login with valid student account</li>
+            <li><span class="checkbox"></span>Login with wrong password</li>
+            <li><span class="checkbox"></span>Login with unknown email (user not found)</li>
+            <li><span class="checkbox"></span>Forgot password with valid email</li>
+            <li><span class="checkbox"></span>Forgot password with unknown email</li>
+            <li><span class="checkbox"></span>Register with valid inputs</li>
+            <li><span class="checkbox"></span>Register with missing fields</li>
+            <li><span class="checkbox"></span>Register with invalid email format</li>
+            <li><span class="checkbox"></span>Register with password shorter than 5 symbols</li>
+            <li><span class="checkbox"></span>Choose an available room date/time and confirm</li>
+            <li><span class="checkbox"></span>Try booking an already reserved room timeslot</li>
+            <li><span class="checkbox"></span>Open Reserved Rooms and verify booking status</li>
+            <li><span class="checkbox"></span>Edit a reservation and re-check availability</li>
+            <li><span class="checkbox"></span>Cancel a reservation and verify list refresh</li>
+            <li><span class="checkbox"></span>Simulate expired session and verify redirect/login prompt</li>
+            <li><span class="checkbox"></span>Simulate network/server error and verify retry UX</li>
+        </ul>
+    </section>
 
     <section class="legend">
         <strong>Note:</strong> This file is optimized for printing and annotation. Use
