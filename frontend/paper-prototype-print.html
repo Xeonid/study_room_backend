@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Study Room Prototype (Printer Friendly)</title>
+    <style>
+        :root { --ink: #111; --line: #d9d9d9; }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            color: var(--ink);
+            background: #fff;
+            line-height: 1.35;
+        }
+        .page {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 { margin: 0 0 4px; font-size: 28px; }
+        .subtitle { margin: 0 0 16px; color: #444; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+        .card {
+            border: 1px solid #222;
+            padding: 10px;
+            border-radius: 6px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+            background: #fff;
+        }
+        .card h2 {
+            margin: 0 0 8px;
+            font-size: 18px;
+            border-bottom: 1px solid var(--line);
+            padding-bottom: 6px;
+        }
+        .item {
+            border: 1px solid var(--line);
+            padding: 6px 8px;
+            margin-bottom: 6px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .actions { margin-top: 6px; font-weight: 700; font-size: 13px; }
+        .note { margin: 8px 0 0; font-size: 13px; color: #333; }
+        .legend {
+            margin-top: 14px;
+            border-top: 1px solid #222;
+            padding-top: 10px;
+            font-size: 13px;
+        }
+        .print-btn { margin-top: 10px; }
+        .scenarios {
+            margin-top: 14px;
+            border: 1px solid #222;
+            border-radius: 6px;
+            padding: 10px;
+            page-break-inside: avoid;
+        }
+        .scenarios h2 {
+            margin: 0 0 8px;
+            font-size: 18px;
+            border-bottom: 1px solid var(--line);
+            padding-bottom: 6px;
+        }
+        .scenarios ul {
+            margin: 0;
+            padding-left: 0;
+            list-style: none;
+            columns: 2;
+            column-gap: 18px;
+        }
+        .scenarios li {
+            margin: 0 0 6px;
+            break-inside: avoid;
+            font-size: 14px;
+        }
+        .checkbox {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 1px solid #111;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @media print {
+            .print-btn { display: none; }
+            .page { max-width: none; padding: 10mm; }
+            .grid { gap: 10px; }
+            .scenarios ul { columns: 1; }
+        }
+    </style>
+</head>
+<body>
+<div class="page">
+    <h1>Study Room Prototype (Printer Friendly)</h1>
+    <p class="subtitle">Clean black-and-white layout for printing and review notes.</p>
+    <button class="print-btn" onclick="window.print()">Print this page</button>
+
+    <main class="grid">
+        <section class="card">
+            <h2>1) Auth Landing</h2>
+            <div class="item">Study Room Portal title</div>
+            <div class="item">Tabs: Login | Register</div>
+            <div class="item">Email + Password input</div>
+            <p class="actions">Actions: Login, Go Register</p>
+        </section>
+
+        <section class="card">
+            <h2>2) Auth Errors</h2>
+            <div class="item">Error: Wrong password</div>
+            <div class="item">Error: User not found</div>
+            <div class="item">Recovery: Reset password or Register</div>
+            <p class="actions">Actions: Try Again, Forgot Password</p>
+        </section>
+
+        <section class="card">
+            <h2>3) Forgot Password</h2>
+            <div class="item">Enter account email</div>
+            <div class="item">Validation: required + valid email</div>
+            <div class="item">Result: reset link sent / email not found / link expired</div>
+            <p class="actions">Actions: Send Reset Link, Back to Login</p>
+        </section>
+
+        <section class="card">
+            <h2>4) Register View</h2>
+            <div class="item">Name, Email, Password, Role</div>
+            <div class="item">Success message and redirect</div>
+            <p class="actions">Actions: Register, Back to Login</p>
+        </section>
+
+        <section class="card">
+            <h2>5) Registration Errors</h2>
+            <div class="item">Missing required fields</div>
+            <div class="item">Invalid email format</div>
+            <div class="item">Password too short (&lt; 5 symbols)</div>
+            <p class="actions">Actions: Fix Inputs, Submit Again</p>
+        </section>
+
+        <section class="card">
+            <h2>6) Dashboard</h2>
+            <div class="item">Welcome + Role badge</div>
+            <div class="item">Study room list/cards</div>
+            <div class="item">Create/Join room actions</div>
+            <p class="actions">Actions: Open Room, Logout</p>
+        </section>
+
+        <section class="card">
+            <h2>7) Time Choosing</h2>
+            <div class="item">Pick date, start, end</div>
+            <div class="item">Duration preview</div>
+            <p class="actions">Actions: Check Availability, Confirm Slot</p>
+        </section>
+
+        <section class="card">
+            <h2>8) Booking Conflict Error</h2>
+            <div class="item">Conflict: room date/time already booked</div>
+            <div class="item">Conflicting slot details + suggested alternatives</div>
+            <p class="actions">Actions: Pick Another Time, Choose Different Room</p>
+        </section>
+
+        <section class="card">
+            <h2>9) Reserved Rooms</h2>
+            <div class="item">Bookings list + room timeslot</div>
+            <div class="item">Status: upcoming / active / completed</div>
+            <div class="item">Quick actions: edit / cancel</div>
+            <p class="actions">Actions: View Details, Reserve Another</p>
+        </section>
+
+        <section class="card">
+            <h2>10) Validation &amp; System Errors</h2>
+            <div class="item">Missing fields / invalid time range</div>
+            <div class="item">Session expired</div>
+            <div class="item">Network/server error with retry hint</div>
+            <p class="actions">Actions: Retry, Back to Dashboard</p>
+        </section>
+    </main>
+
+
+
+    <section class="scenarios">
+        <h2>Printer-Friendly Prototype Testing Scenarios</h2>
+        <ul>
+            <li><span class="checkbox"></span>Login with valid student account</li>
+            <li><span class="checkbox"></span>Login with wrong password</li>
+            <li><span class="checkbox"></span>Login with unknown email (user not found)</li>
+            <li><span class="checkbox"></span>Forgot password with valid email</li>
+            <li><span class="checkbox"></span>Forgot password with unknown email</li>
+            <li><span class="checkbox"></span>Register with valid inputs</li>
+            <li><span class="checkbox"></span>Register with missing fields</li>
+            <li><span class="checkbox"></span>Register with invalid email format</li>
+            <li><span class="checkbox"></span>Register with password shorter than 5 symbols</li>
+            <li><span class="checkbox"></span>Choose an available room date/time and confirm</li>
+            <li><span class="checkbox"></span>Try booking an already reserved room timeslot</li>
+            <li><span class="checkbox"></span>Open Reserved Rooms and verify booking status</li>
+            <li><span class="checkbox"></span>Edit a reservation and re-check availability</li>
+            <li><span class="checkbox"></span>Cancel a reservation and verify list refresh</li>
+            <li><span class="checkbox"></span>Simulate expired session and verify redirect/login prompt</li>
+            <li><span class="checkbox"></span>Simulate network/server error and verify retry UX</li>
+        </ul>
+    </section>
+
+    <section class="legend">
+        <strong>Note:</strong> This file is optimized for printing and annotation. Use
+        <code>paper-prototype.html</code> for the sketch-style visual version.
+    </section>
+</div>
+</body>
+</html>
