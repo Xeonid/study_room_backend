@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Study Room Paper Prototype</title>
+    <style>
+        :root {
+            --ink: #232323;
+            --paper: #f8f3df;
+            --accent: #4a5cff;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background:
+                linear-gradient(transparent 31px, rgba(25, 25, 25, 0.08) 32px),
+                linear-gradient(90deg, transparent 31px, rgba(25, 25, 25, 0.08) 32px),
+                var(--paper);
+            background-size: 32px 32px;
+            color: var(--ink);
+            font-family: "Comic Sans MS", "Chalkboard SE", "Bradley Hand", cursive;
+            padding: 28px;
+        }
+
+        h1 {
+            text-align: center;
+            margin: 0 0 8px;
+            font-size: clamp(2rem, 4vw, 2.8rem);
+            text-decoration: underline;
+            text-decoration-style: wavy;
+            text-decoration-color: var(--accent);
+        }
+
+        .subtitle {
+            text-align: center;
+            margin: 0 0 26px;
+            font-size: 1.15rem;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 22px;
+            max-width: 1180px;
+            margin: 0 auto;
+        }
+
+        .screen {
+            background: rgba(255, 255, 255, 0.55);
+            border: 3px solid var(--ink);
+            border-radius: 18px 22px 14px 20px;
+            padding: 14px;
+            transform: rotate(var(--rotation));
+            box-shadow: 4px 5px 0 rgba(0, 0, 0, 0.22);
+        }
+
+        .screen h2 {
+            margin: 0 0 10px;
+            font-size: 1.45rem;
+            border-bottom: 2px dashed var(--ink);
+            padding-bottom: 8px;
+        }
+
+        .box {
+            border: 2px dashed var(--ink);
+            border-radius: 12px;
+            padding: 10px;
+            min-height: 34px;
+            margin-bottom: 8px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 4px 16px;
+            border: 2px solid var(--ink);
+            border-radius: 999px;
+            background: #fff;
+            font-weight: 700;
+            margin: 4px 4px 0 0;
+        }
+
+        .arrow {
+            font-size: 1.9rem;
+            text-align: center;
+            font-weight: 900;
+            color: var(--accent);
+            margin-top: 8px;
+        }
+
+        .legend {
+            max-width: 1180px;
+            margin: 24px auto 0;
+            border-top: 3px double var(--ink);
+            padding-top: 12px;
+            font-size: 1rem;
+        }
+
+        .legend ul { margin: 8px 0; }
+    </style>
+</head>
+<body>
+<h1>Study Room – Paper Prototype</h1>
+<p class="subtitle">Sketch wireframe with paired happy/error cards shown next to each other</p>
+<p class="subtitle" style="margin-top:-10px;"><a href="paper-prototype-print.html">Open printer-friendly version</a></p>
+
+<main class="board">
+    <section class="screen" style="--rotation: -1.6deg;">
+        <h2>1) Auth Landing</h2>
+        <div class="box">[ Study Room Portal title ]</div>
+        <div class="box">[ Tabs: Login | Register ]</div>
+        <div class="box">[ Email input ]</div>
+        <div class="box">[ Password input ]</div>
+        <span class="btn">Login</span>
+        <span class="btn">Go Register</span>
+        <p class="arrow">⇩</p>
+        <small>User chooses login or register.</small>
+    </section>
+
+    <section class="screen" style="--rotation: 0.9deg;">
+        <h2>2) Auth Errors</h2>
+        <div class="box">[ Error banner: Wrong password ]</div>
+        <div class="box">[ Error banner: User not found ]</div>
+        <div class="box">[ Suggestion: Reset password or Register ]</div>
+        <span class="btn">Try Again</span>
+        <span class="btn">Forgot Password</span>
+        <p class="arrow">⇩</p>
+        <small>Placed next to Auth so login failures are reviewed in-context.</small>
+    </section>
+
+    <section class="screen" style="--rotation: 0.7deg;">
+        <h2>3) Forgot Password</h2>
+        <div class="box">[ Enter account email ]</div>
+        <div class="box">[ Validation: email required + valid format ]</div>
+        <div class="box">[ Success: reset link sent ]</div>
+        <div class="box">[ Error: email not found / link expired ]</div>
+        <span class="btn">Send Reset Link</span>
+        <span class="btn">Back to Login</span>
+        <p class="arrow">⇩</p>
+        <small>Recovery path is grouped with auth and auth-error panels.</small>
+    </section>
+
+    <section class="screen" style="--rotation: 1.1deg;">
+        <h2>4) Register View</h2>
+        <div class="box">[ Name input ]</div>
+        <div class="box">[ Email input ]</div>
+        <div class="box">[ Password input ]</div>
+        <div class="box">[ Role: Student / Admin ]</div>
+        <span class="btn">Register</span>
+        <span class="btn">Back to Login</span>
+        <p class="arrow">⇩</p>
+        <small>Show success message + redirect to dashboard after sign in.</small>
+    </section>
+
+    <section class="screen" style="--rotation: -0.6deg;">
+        <h2>5) Registration Errors</h2>
+        <div class="box">[ Missing fields: name/email/password required ]</div>
+        <div class="box">[ Invalid email format ]</div>
+        <div class="box">[ Password too short (minimum 5 symbols) ]</div>
+        <span class="btn">Fix Inputs</span>
+        <span class="btn">Submit Again</span>
+        <p class="arrow">⇩</p>
+        <small>Grouped with registration view for easy side-by-side review.</small>
+    </section>
+
+    <section class="screen" style="--rotation: -0.8deg;">
+        <h2>6) Dashboard</h2>
+        <div class="box">[ Welcome: {name} ]</div>
+        <div class="box">[ Role badge ]</div>
+        <div class="box">[ Study Room list / cards ]</div>
+        <div class="box">[ Create / Join room actions ]</div>
+        <span class="btn">Open Room</span>
+        <span class="btn">Logout</span>
+        <p class="arrow">⇩</p>
+        <small>Primary workspace for students/admin.</small>
+    </section>
+
+    <section class="screen" style="--rotation: 1.5deg;">
+        <h2>7) Time Choosing</h2>
+        <div class="box">[ Pick date ]</div>
+        <div class="box">[ Start time ]</div>
+        <div class="box">[ End time ]</div>
+        <div class="box">[ Duration preview ]</div>
+        <span class="btn">Check Availability</span>
+        <span class="btn">Confirm Slot</span>
+        <p class="arrow">⇩</p>
+        <small>Choose a study schedule before creating or joining sessions.</small>
+    </section>
+
+    <section class="screen" style="--rotation: -1.4deg;">
+        <h2>8) Booking Conflict Error</h2>
+        <div class="box">[ Conflict: Room date/time already booked ]</div>
+        <div class="box">[ Show conflicting slot details ]</div>
+        <div class="box">[ Suggest alternative available time ]</div>
+        <span class="btn">Pick Another Time</span>
+        <span class="btn">Choose Different Room</span>
+        <p class="arrow">⇩</p>
+        <small>Placed beside reservation flow panels to compare happy/error states.</small>
+    </section>
+
+    <section class="screen" style="--rotation: -1.1deg;">
+        <h2>9) Reserved Rooms</h2>
+        <div class="box">[ My bookings list ]</div>
+        <div class="box">[ Room name + timeslot ]</div>
+        <div class="box">[ Status: upcoming / active / completed ]</div>
+        <div class="box">[ Quick actions: Edit / Cancel ]</div>
+        <span class="btn">View Details</span>
+        <span class="btn">Reserve Another</span>
+        <p class="arrow">⇩</p>
+        <small>Track upcoming reservations and manage booking changes.</small>
+    </section>
+
+    <section class="screen" style="--rotation: 1.3deg;">
+        <h2>10) Validation & System Errors</h2>
+        <div class="box">[ Missing fields / invalid time range ]</div>
+        <div class="box">[ Session expired / please login again ]</div>
+        <div class="box">[ Network/server error + retry hint ]</div>
+        <span class="btn">Retry</span>
+        <span class="btn">Back to Dashboard</span>
+        <p class="arrow">⇩</p>
+        <small>General fallback states shown next to dashboard/reservation flows.</small>
+    </section>
+</main>
+
+<section class="legend">
+    <strong>Prototype Notes:</strong>
+    <ul>
+        <li>Hand-drawn aesthetic helps with early-stage feedback before polished UI work.</li>
+        <li>Panels are grouped so each core flow card appears next to its related error card.</li>
+        <li>Error-state panels cover wrong password, user not found, forgot-password recovery, booking conflicts, and registration validation failures.</li>
+        <li>Each panel maps directly to pages already present in this project.</li>
+        <li>Use this as a planning artifact for user flow reviews.</li>
+    </ul>
+</section>
+</body>
+</html>
