@@ -20,11 +20,12 @@ type Room struct {
 }
 
 type Reservation struct {
-	ID        int
-	RoomID    int
-	UserID    int
-	StartTime time.Time
-	EndTime   time.Time
-	Status    string
-	CreatedAt time.Time
+	ID            int
+	RoomID        int
+	UserID        int
+	StartTime     time.Time
+	EndTime       time.Time
+	AttendeeCount int
+	Status        string
+	CreatedAt     time.Time
 }

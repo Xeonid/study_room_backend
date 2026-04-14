@@ -237,6 +237,9 @@ function applyTimeSelection() {
     updateReservationSummary();
     syncManualInputsFromState();
     schedulerState.modal.hide();
+    refreshAvailableRooms().catch(err => {
+        setRoomAvailabilityHint(String(err.message || err), true);
+    });
     return true;
 }
 
@@ -264,15 +267,27 @@ function initSchedulerModal() {
     initTimeSelectOptions();
 
     manualDateInput.addEventListener("change", () => {
-        applyManualDateTimeInputs();
+        if (applyManualDateTimeInputs()) {
+            refreshAvailableRooms().catch(err => {
+                setRoomAvailabilityHint(String(err.message || err), true);
+            });
+        }
     });
 
     manualStartInput.addEventListener("change", () => {
-        applyManualDateTimeInputs();
+        if (applyManualDateTimeInputs()) {
+            refreshAvailableRooms().catch(err => {
+                setRoomAvailabilityHint(String(err.message || err), true);
+            });
+        }
     });
 
     manualEndInput.addEventListener("change", () => {
-        applyManualDateTimeInputs();
+        if (applyManualDateTimeInputs()) {
+            refreshAvailableRooms().catch(err => {
+                setRoomAvailabilityHint(String(err.message || err), true);
+            });
+        }
     });
 
     const bootstrapAvailable = typeof bootstrap !== "undefined" && typeof bootstrap.Modal === "function";
@@ -315,7 +330,9 @@ function initSchedulerModal() {
 }
 
 const roomNameByID = new Map();
+const roomDetailsByID = new Map();
 let reservationsCache = [];
+let editingReservationID = null;
 let calendarViewDate = new Date();
 let calendarViewMode = "month";
 let calendarStatusFilter = "all";
@@ -407,6 +424,8 @@ function toReservationModel(reservation) {
         roomID: Number(reservation.room_id),
         room: reservation.room_name || reservation.room || roomNameByID.get(Number(reservation.room_id)) || `Room #${reservation.room_id}`,
         status: reservation.status || "Other",
+        attendeeCount: Number(reservation.attendee_count || 0),
+        roomCapacity: Number(reservation.room_capacity || roomDetailsByID.get(Number(reservation.room_id))?.capacity || 0),
         startDate,
         endDate
     };
@@ -537,6 +556,7 @@ function renderBookingListing() {
             <td>
                 <small class="text-muted">Starts ${escapeHTML(formatDisplayDateTime(model.startDate))}</small><br>
                 <small class="text-muted">Ends ${escapeHTML(formatDisplayDateTime(model.endDate))}</small>
+                ${model.attendeeCount > 0 ? `<br><small class="text-muted">Group size: ${model.attendeeCount}</small>` : ""}
             </td>
             <td class="text-end">
                 <div class="dropdown">
@@ -545,7 +565,7 @@ function renderBookingListing() {
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li><button class="dropdown-item" type="button">Set as Pending</button></li>
-                        <li><button class="dropdown-item" type="button">Edit booking</button></li>
+                        <li><button class="dropdown-item js-edit-booking" type="button" data-reservation-id="${model.id}">Edit booking</button></li>
                         <li><button class="dropdown-item" type="button">Edit note</button></li>
                         <li><button class="dropdown-item" type="button">Print</button></li>
                         <li><hr class="dropdown-divider"></li>
@@ -651,6 +671,11 @@ function setRoomSelectionByID(roomID) {
 }
 
 function prefillReservationFromTimelineEvent(data) {
+    if (Number.isInteger(Number(data.reservationId))) {
+        beginReservationEdit(Number(data.reservationId));
+        return;
+    }
+
     const startDate = new Date(data.start);
     const endDate = new Date(data.end);
     if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
@@ -744,6 +769,7 @@ function renderCalendarDayCell(container, dayDate, eventsByDay, todayKey, showWe
             const eventEl = document.createElement("div");
             const nowClass = isReservationOngoing(event) ? " is-now" : "";
             eventEl.className = `timeline-event ${timelineStatusClass(event)}${nowClass}`;
+            eventEl.dataset.reservationId = String(event.id || "");
             eventEl.dataset.start = event.startDate.toISOString();
             eventEl.dataset.end = event.endDate.toISOString();
             eventEl.dataset.roomId = String(event.roomID || "");
@@ -754,7 +780,7 @@ function renderCalendarDayCell(container, dayDate, eventsByDay, todayKey, showWe
                         <span class="status-pill ${statusClassFromReservation(event)}">${escapeHTML(statusLabelFromReservation(event))}</span>
                     </div>
                 </div>
-                <div class="timeline-event-room">${escapeHTML(event.room)}</div>
+                <div class="timeline-event-room">${escapeHTML(event.room)}${event.attendeeCount > 0 ? ` (${escapeHTML(String(event.attendeeCount))})` : ""}</div>
             `;
             eventsHost.appendChild(eventEl);
         });
@@ -1004,6 +1030,17 @@ function initBookingsCalendar() {
 
     if (listingRows) {
         listingRows.addEventListener("click", event => {
+            const editButton = event.target.closest(".js-edit-booking");
+            if (editButton) {
+                const resID = Number(editButton.dataset.reservationId);
+                if (Number.isNaN(resID)) {
+                    alert("Invalid reservation ID.");
+                    return;
+                }
+                beginReservationEdit(resID);
+                return;
+            }
+
             const deleteButton = event.target.closest(".js-delete-booking");
             if (!deleteButton) return;
 
@@ -1022,6 +1059,7 @@ function initBookingsCalendar() {
             const target = event.target.closest(".timeline-event");
             if (target) {
                 prefillReservationFromTimelineEvent({
+                    reservationId: target.dataset.reservationId,
                     start: target.dataset.start,
                     end: target.dataset.end,
                     roomId: target.dataset.roomId
@@ -1042,33 +1080,199 @@ function initBookingsCalendar() {
 }
 
 // -------------------- Fetch Rooms --------------------
-async function fetchRooms() {
+function getReservationSearchParams() {
+    if (!applyManualDateTimeInputs()) {
+        return null;
+    }
+
+    const attendeeInput = document.getElementById("attendeeCount");
+    const attendeeCount = Number(attendeeInput?.value || 0);
+    if (!Number.isInteger(attendeeCount) || attendeeCount <= 0) {
+        return null;
+    }
+
+    if (!schedulerState.startDateTime || !schedulerState.endDateTime) {
+        return {
+            attendeeCount,
+            startTime: null,
+            endTime: null
+        };
+    }
+
+    return {
+        attendeeCount,
+        startTime: schedulerState.startDateTime,
+        endTime: schedulerState.endDateTime
+    };
+}
+
+function setRoomAvailabilityHint(message, isError = false) {
+    const hint = document.getElementById("roomAvailabilityHint");
+    if (!hint) return;
+
+    hint.textContent = message;
+    hint.classList.toggle("text-danger", isError);
+    hint.classList.toggle("text-muted", !isError);
+}
+
+function updateReservationFormMode() {
+    const notice = document.getElementById("reservationEditNotice");
+    const submitBtn = document.getElementById("reservationSubmitBtn");
+    const cancelBtn = document.getElementById("reservationCancelEditBtn");
+    if (!notice || !submitBtn || !cancelBtn) return;
+
+    const isEditing = editingReservationID !== null;
+    notice.classList.toggle("d-none", !isEditing);
+    cancelBtn.classList.toggle("d-none", !isEditing);
+    submitBtn.textContent = isEditing ? "Save Reservation" : "Reserve Room";
+}
+
+function resetReservationFormMode() {
+    editingReservationID = null;
+    updateReservationFormMode();
+}
+
+function beginReservationEdit(reservationID) {
+    const reservation = reservationsCache.find(item => Number(item.id) === Number(reservationID));
+    if (!reservation) {
+        alert("Reservation not found.");
+        return;
+    }
+
+    editingReservationID = Number(reservationID);
+    document.getElementById("attendeeCount").value = String(reservation.attendee_count || 1);
+    setRoomSelectionByID(Number(reservation.room_id));
+
+    const start = new Date(reservation.start_time);
+    const end = new Date(reservation.end_time);
+    schedulerState.startDateTime = start;
+    schedulerState.endDateTime = end;
+    schedulerState.selectedDate = new Date(start);
+    schedulerState.selectedDate.setHours(0, 0, 0, 0);
+    syncManualInputsFromState();
+    updateReservationSummary();
+    updateReservationFormMode();
+    refreshAvailableRooms().catch(err => {
+        setRoomAvailabilityHint(String(err.message || err), true);
+    });
+    openReserveTab();
+}
+
+function populateRoomSelect(rooms, attendeeCount = 0) {
+    const select = document.getElementById("roomSelect");
+    if (!select) return;
+
+    const previousValue = select.value;
+    select.innerHTML = "";
+
+    if (!Array.isArray(rooms) || rooms.length === 0) {
+        select.appendChild(createOption("", "No rooms available for this group and time"));
+        select.value = "";
+        setRoomAvailabilityHint(`No rooms can fit ${attendeeCount || "this"} attendee requirement for the selected time.`, true);
+        return;
+    }
+
+    let fittingRoomCount = 0;
+    rooms.forEach(room => {
+        const option = document.createElement("option");
+        option.value = room.id;
+        const availableCapacity = Number(room.available_capacity ?? room.capacity ?? 0);
+        const fitsRequiredCapacity = room.fits_required_capacity !== false && availableCapacity >= attendeeCount;
+        if (fitsRequiredCapacity) {
+            fittingRoomCount += 1;
+        } else {
+            option.disabled = true;
+        }
+        const capacityLabel = availableCapacity > 0
+            ? `${availableCapacity}/${room.capacity} seats available`
+            : `full for this slot (${room.capacity} total)`;
+        const fitLabel = fitsRequiredCapacity ? "" : " - too small for this group";
+        option.textContent = `${room.name} (${capacityLabel})${fitLabel}`;
+        select.appendChild(option);
+    });
+
+    if (fittingRoomCount === 0) {
+        const placeholder = createOption("", "No rooms currently fit this reservation");
+        placeholder.selected = true;
+        select.insertBefore(placeholder, select.firstChild);
+        select.value = "";
+        setRoomAvailabilityHint(`No rooms can fit ${attendeeCount || "this"} attendee requirement for the selected time.`, true);
+        return;
+    }
+
+    const hasPrevious = rooms.some(room => String(room.id) === String(previousValue) && room.fits_required_capacity !== false);
+    const firstFittingRoom = rooms.find(room => room.fits_required_capacity !== false);
+    select.value = hasPrevious ? previousValue : String(firstFittingRoom?.id ?? "");
+    setRoomAvailabilityHint(`${fittingRoomCount} room${fittingRoomCount === 1 ? "" : "s"} fit this reservation. Disabled options do not have enough seats.`);
+}
+
+async function fetchAllRooms() {
     const token = getToken();
     if (!token) return;
 
     const res = await fetch("/api/rooms", {
         headers: { "Authorization": "Bearer " + token }
     });
+    if (!res.ok) {
+        const err = await res.text();
+        throw new Error(err || "Failed to load rooms");
+    }
 
     const rooms = await writeJSON(res);
-    const select = document.getElementById("roomSelect");
-    select.innerHTML = "";
-
     roomNameByID.clear();
+    roomDetailsByID.clear();
     if (!Array.isArray(rooms)) {
         return;
     }
 
     rooms.forEach(room => {
         roomNameByID.set(Number(room.id), room.name);
-
-        const option = document.createElement("option");
-        option.value = room.id;
-        option.textContent = `${room.name} (Capacity: ${room.capacity})`;
-        select.appendChild(option);
+        roomDetailsByID.set(Number(room.id), room);
     });
 
     fillCalendarRoomFilterOptions();
+}
+
+async function refreshAvailableRooms() {
+    const token = getToken();
+    if (!token) return;
+
+    const params = getReservationSearchParams();
+    if (!params) {
+        populateRoomSelect([]);
+        setRoomAvailabilityHint("Enter a valid group size, date, and time to load matching rooms.", true);
+        return;
+    }
+
+    if (!params.startTime || !params.endTime) {
+        const rooms = Array.from(roomDetailsByID.values())
+            .sort((a, b) => String(a.name).localeCompare(String(b.name)))
+            .map(room => ({
+                ...room,
+                available_capacity: room.capacity,
+                fits_required_capacity: Number(room.capacity) >= params.attendeeCount
+            }));
+        populateRoomSelect(rooms, params.attendeeCount);
+        setRoomAvailabilityHint("Choose date and time to see live remaining seats for each room.");
+        return;
+    }
+
+    const query = new URLSearchParams({
+        start_time: params.startTime.toISOString(),
+        end_time: params.endTime.toISOString(),
+        required_capacity: String(params.attendeeCount),
+        include_unavailable: "true"
+    });
+    const res = await fetch(`/api/rooms?${query.toString()}`, {
+        headers: { "Authorization": "Bearer " + token }
+    });
+    if (!res.ok) {
+        const err = await res.text();
+        throw new Error(err || "Failed to load room availability");
+    }
+
+    const rooms = await writeJSON(res);
+    populateRoomSelect(Array.isArray(rooms) ? rooms : [], params.attendeeCount);
 }
 
 // -------------------- Fetch Reservations --------------------
@@ -1094,7 +1298,7 @@ async function fetchReservations() {
     }
 
     if (roomNameByID.size === 0) {
-        await fetchRooms();
+        await fetchAllRooms();
     }
 
     if (!data || data.length === 0) {
@@ -1109,9 +1313,12 @@ async function fetchReservations() {
     if (tbody) {
         data.forEach(r => {
             const tr = document.createElement("tr");
+            const capacityText = Number(r.attendee_count) > 0
+                ? `<div class="small text-muted">Group size: ${r.attendee_count}</div>`
+                : "";
             tr.innerHTML = `
                 <td>${r.id}</td>
-                <td>${r.room_name || r.room || roomNameByID.get(Number(r.room_id)) || `Room #${r.room_id}`}</td>
+                <td>${r.room_name || r.room || roomNameByID.get(Number(r.room_id)) || `Room #${r.room_id}`}${capacityText}</td>
                 <td>${formatDisplayDateTime(new Date(r.start_time))}</td>
                 <td>${formatDisplayDateTime(new Date(r.end_time))}</td>
                 <td>${r.status}</td>
@@ -1138,16 +1345,27 @@ async function createReservation(event) {
     }
 
     const roomID = document.getElementById("roomSelect").value;
+    const attendeeCount = Number(document.getElementById("attendeeCount").value);
     const startTime = schedulerState.startDateTime;
     const endTime = schedulerState.endDateTime;
 
+    if (!Number.isInteger(attendeeCount) || attendeeCount <= 0) {
+        alert("Please enter a valid group size.");
+        return;
+    }
+    if (!roomID) {
+        alert("No room is currently available for that reservation.");
+        return;
+    }
     if (!startTime || !endTime) {
         alert("Please choose date and times first.");
         return;
     }
 
-    const res = await fetch("/api/reservations", {
-        method: "POST",
+    const isEditing = editingReservationID !== null;
+    const endpoint = isEditing ? `/api/reservations?id=${editingReservationID}` : "/api/reservations";
+    const res = await fetch(endpoint, {
+        method: isEditing ? "PUT" : "POST",
         headers: {
             "Authorization": "Bearer " + token,
             "Content-Type": "application/json"
@@ -1155,7 +1373,8 @@ async function createReservation(event) {
         body: JSON.stringify({
             room_id: Number(roomID),
             start_time: startTime.toISOString(),
-            end_time: endTime.toISOString()
+            end_time: endTime.toISOString(),
+            attendee_count: attendeeCount
         })
     });
 
@@ -1166,7 +1385,9 @@ async function createReservation(event) {
     }
 
     syncManualInputsFromState();
+    resetReservationFormMode();
     await fetchReservations();
+    await refreshAvailableRooms();
 }
 
 // -------------------- Delete Reservation --------------------
@@ -1193,6 +1414,7 @@ async function deleteReservation(resID) {
     }
 
     await fetchReservations();
+    await refreshAvailableRooms();
 }
 
 // -------------------- Init Dashboard --------------------
@@ -1206,10 +1428,23 @@ async function initDashboard() {
     renderWelcomeUserName();
     initBookingsCalendar();
     initSchedulerModal();
-    await fetchRooms();
+    await fetchAllRooms();
+    await refreshAvailableRooms();
     await fetchReservations();
 
     document.getElementById("reservationForm").addEventListener("submit", createReservation);
+    document.getElementById("attendeeCount").addEventListener("input", () => {
+        refreshAvailableRooms().catch(err => {
+            setRoomAvailabilityHint(String(err.message || err), true);
+        });
+    });
+    document.getElementById("reservationCancelEditBtn").addEventListener("click", () => {
+        resetReservationFormMode();
+        refreshAvailableRooms().catch(err => {
+            setRoomAvailabilityHint(String(err.message || err), true);
+        });
+    });
+    updateReservationFormMode();
 }
 
 window.addEventListener("DOMContentLoaded", initDashboard);

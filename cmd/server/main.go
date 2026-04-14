@@ -38,6 +38,8 @@ func main() {
 			resHandler.GetReservations(w, r)
 		case http.MethodPost:
 			resHandler.CreateReservation(w, r)
+		case http.MethodPut:
+			resHandler.UpdateReservation(w, r)
 		case http.MethodDelete:
 			resHandler.DeleteReservation(w, r)
 		default:
