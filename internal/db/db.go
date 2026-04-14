@@ -5,6 +5,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"log"
 	"os"
+	"strings"
 )
 
 func InitDB() *sql.DB {
@@ -22,6 +23,21 @@ func InitDB() *sql.DB {
 	_, err = db.Exec(string(schema))
 	if err != nil {
 		log.Fatal(err)
+	}
+	if _, err := db.Exec("PRAGMA busy_timeout = 5000"); err != nil {
+		log.Fatal(err)
+	}
+	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
+		log.Fatal(err)
+	}
+
+	migrations := []string{
+		"ALTER TABLE reservations ADD COLUMN attendee_count INTEGER NOT NULL DEFAULT 1",
+	}
+	for _, migration := range migrations {
+		if _, err := db.Exec(migration); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column name") {
+			log.Fatal(err)
+		}
 	}
 
 	return db

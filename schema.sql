@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS reservations (
                                             user_id INTEGER NOT NULL,
                                             start_time DATETIME NOT NULL,
                                             end_time DATETIME NOT NULL,
+                                            attendee_count INTEGER NOT NULL DEFAULT 1,
                                             status TEXT NOT NULL DEFAULT 'active',
                                             FOREIGN KEY (room_id) REFERENCES rooms(id),
                                             FOREIGN KEY (user_id) REFERENCES users(id)

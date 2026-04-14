@@ -557,7 +557,19 @@
                     <div class="card-body">
                         <h3 class="h5 mb-3">Reserve Room</h3>
                         <form id="reservationForm" class="w-100 d-flex flex-column gap-2">
-                            <select id="roomSelect" class="form-select" required></select>
+                            <div id="reservationEditNotice" class="alert alert-info py-2 px-3 d-none" role="alert">
+                                Editing an existing reservation. Capacity and duration will be rechecked on save.
+                            </div>
+                            <div>
+                                <label for="attendeeCount" class="form-label mb-1">Group size</label>
+                                <input type="number" id="attendeeCount" class="form-control" min="1" step="1" value="1" required>
+                            </div>
+
+                            <div>
+                                <label for="roomSelect" class="form-label mb-1">Available rooms</label>
+                                <select id="roomSelect" class="form-select" required></select>
+                                <div id="roomAvailabilityHint" class="small text-muted mt-2">Choose date, time, and group size to load matching rooms.</div>
+                            </div>
 
                             <div class="border rounded p-3 bg-light">
                                 <label class="form-label fw-semibold mb-2">Reservation time</label>
@@ -580,7 +592,10 @@
                                 <div class="small text-muted mt-2">You can either type date/time manually or use the scheduler.</div>
                             </div>
 
-                            <button class="btn btn-primary mt-2">Reserve Room</button>
+                            <div class="d-flex gap-2 mt-2">
+                                <button id="reservationSubmitBtn" class="btn btn-primary" type="submit">Reserve Room</button>
+                                <button id="reservationCancelEditBtn" class="btn btn-outline-secondary d-none" type="button">Cancel Edit</button>
+                            </div>
                         </form>
                     </div>
                 </div>
@@ -610,7 +625,7 @@
                         </h2>
                         <div id="faqTwo" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
                             <div class="accordion-body">
-                                Editing is not available yet. Delete the existing reservation and create a new one with the correct time.
+                                Yes. Open the booking actions menu, choose Edit booking, then update the group size, room, or time. The system rechecks capacity before saving.
                             </div>
                         </div>
                     </div>
