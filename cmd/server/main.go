@@ -28,8 +28,10 @@ func main() {
 
 	// Rooms
 	mux.Handle("/api/rooms", middleware.AuthMiddleware(http.HandlerFunc(roomHandler.GetRooms)))
-	mux.Handle("/api/rooms/create", middleware.AuthMiddleware(http.HandlerFunc(roomHandler.CreateRoom)))
-	mux.Handle("/api/rooms/delete", middleware.AuthMiddleware(http.HandlerFunc(roomHandler.DeleteRoom)))
+	mux.Handle("/api/rooms/create", middleware.AuthMiddleware(middleware.RequireAdmin(http.HandlerFunc(roomHandler.CreateRoom))))
+	mux.Handle("/api/rooms/update", middleware.AuthMiddleware(middleware.RequireAdmin(http.HandlerFunc(roomHandler.UpdateRoom))))
+	mux.Handle("/api/rooms/deactivate", middleware.AuthMiddleware(middleware.RequireAdmin(http.HandlerFunc(roomHandler.DeactivateRoom))))
+	mux.Handle("/api/rooms/delete", middleware.AuthMiddleware(middleware.RequireAdmin(http.HandlerFunc(roomHandler.DeleteRoom))))
 
 	// Reservations — single path, switch on method
 	mux.Handle("/api/reservations", middleware.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -46,6 +48,16 @@ func main() {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	})))
+	mux.Handle("/api/admin/reservations", middleware.AuthMiddleware(middleware.RequireAdmin(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			resHandler.AdminGetReservations(w, r)
+		case http.MethodDelete:
+			resHandler.AdminDeleteReservation(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))))
 
 	log.Println("Server running on http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", mux))

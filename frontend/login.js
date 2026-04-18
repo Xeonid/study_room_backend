@@ -40,6 +40,7 @@ loginForm.addEventListener("submit", async (event) => {
         const data = await res.json();
         localStorage.setItem("token", data.token);
         localStorage.setItem("user_email", (data.email || email).trim());
+        localStorage.setItem("user_role", (data.role || "student").trim().toLowerCase());
 
         if ((data.name || "").trim()) {
             localStorage.setItem("user_name", data.name.trim());

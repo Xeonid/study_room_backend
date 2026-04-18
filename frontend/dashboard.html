@@ -411,13 +411,24 @@
                     <i class="bi bi-question-circle"></i>
                 </button>
             </li>
+            <li class="nav-item d-none" role="presentation" id="admin-tab-item">
+                <button class="nav-link" id="admin-tab-btn" data-bs-toggle="pill" data-bs-target="#admin-tab" type="button" role="tab" aria-controls="admin-tab" aria-selected="false" title="Admin">
+                    <i class="bi bi-shield-lock"></i>
+                </button>
+            </li>
         </ul>
     </aside>
 
     <main class="flex-grow-1 p-4">
         <div class="tab-content" id="sidebarTabsContent">
             <section class="tab-pane fade show active" id="dashboard-tab" role="tabpanel" aria-labelledby="dashboard-tab-btn" tabindex="0">
-                <h1 class="mb-3">Welcome, <span id="welcomeUserName">there</span>!</h1>
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                    <div>
+                        <h1 class="mb-1">Welcome, <span id="welcomeUserName">there</span>!</h1>
+                        <div class="text-muted">Role: <span id="welcomeUserRole">student</span></div>
+                    </div>
+                    <button id="logoutBtn" class="btn btn-outline-secondary btn-sm" type="button">Log Out</button>
+                </div>
                 <div class="alert alert-info py-2 mb-4" role="alert">
                     Tips: 1) Use Calendar -> Timeline View to find a day. 2) Click a booking to reuse time or click Free day to prefill reservation. 3) Finalize in Reserve Room tab.
                 </div>
@@ -569,6 +580,9 @@
                                 <label for="roomSelect" class="form-label mb-1">Available rooms</label>
                                 <select id="roomSelect" class="form-select" required></select>
                                 <div id="roomAvailabilityHint" class="small text-muted mt-2">Choose date, time, and group size to load matching rooms.</div>
+                                <div id="roomAvailabilityFeedback" class="mt-2 d-none">
+                                    <div id="roomAvailabilityFeedbackBody" class="alert py-2 px-3 mb-0" role="alert"></div>
+                                </div>
                             </div>
 
                             <div class="border rounded p-3 bg-light">
@@ -594,9 +608,130 @@
 
                             <div class="d-flex gap-2 mt-2">
                                 <button id="reservationSubmitBtn" class="btn btn-primary" type="submit">Reserve Room</button>
+                                <button id="reservationDeleteEditBtn" class="btn btn-outline-danger d-none" type="button">Delete Reservation</button>
                                 <button id="reservationCancelEditBtn" class="btn btn-outline-secondary d-none" type="button">Cancel Edit</button>
                             </div>
+                            <div class="mt-2">
+                                <div id="reservationActionToast" class="toast align-items-center border-0 w-100" role="status" aria-live="polite" aria-atomic="true">
+                                    <div class="d-flex">
+                                        <div id="reservationActionToastBody" class="toast-body fs-5 fw-semibold">Saved.</div>
+                                        <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                                    </div>
+                                </div>
+                            </div>
                         </form>
+                    </div>
+                </div>
+            </section>
+
+            <section class="tab-pane fade d-none" id="admin-tab" role="tabpanel" aria-labelledby="admin-tab-btn" tabindex="0">
+                <h1 class="mb-4">Admin</h1>
+                <div class="d-flex gap-2 flex-wrap mb-3">
+                    <button id="adminRoomsViewBtn" class="btn btn-primary btn-sm" type="button">Room Management</button>
+                    <button id="adminReservationsViewBtn" class="btn btn-outline-primary btn-sm" type="button">All Reservations</button>
+                </div>
+                <div id="adminRoomPanel" class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                            <div>
+                                <h3 class="h5 mb-1">Room Management</h3>
+                                <div class="small text-muted">Create, update, and delete rooms. These actions are admin-only.</div>
+                            </div>
+                            <div class="w-100" style="max-width: 320px;">
+                                <input id="adminRoomSearchInput" class="form-control form-control-sm" type="text" placeholder="Search rooms, notes, or reasons">
+                            </div>
+                        </div>
+                        <form id="adminRoomForm" class="row g-2 align-items-end">
+                            <div class="col-12 col-md-4">
+                                <label for="adminRoomName" class="form-label mb-1">Room name</label>
+                                <input id="adminRoomName" class="form-control" type="text" required>
+                            </div>
+                            <div class="col-12 col-md-2">
+                                <label for="adminRoomCapacity" class="form-label mb-1">Capacity</label>
+                                <input id="adminRoomCapacity" class="form-control" type="number" min="1" step="1" required>
+                            </div>
+                            <div class="col-12 col-md-3">
+                                <label for="adminRoomNote" class="form-label mb-1">Note</label>
+                                <input id="adminRoomNote" class="form-control" type="text" maxlength="160" placeholder="Optional note">
+                            </div>
+                            <div class="col-12 col-md-1">
+                                <label for="adminRoomIsActive" class="form-label mb-1">Active</label>
+                                <input id="adminRoomIsActive" class="form-check-input d-block mt-2" type="checkbox" checked>
+                            </div>
+                            <div class="col-12 col-md-2 d-flex gap-2">
+                                <button id="adminRoomSubmitBtn" class="btn btn-primary" type="submit">Create Room</button>
+                            </div>
+                        </form>
+                        <div class="table-responsive mt-3">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Capacity</th>
+                                    <th>Note</th>
+                                    <th>Status</th>
+                                    <th>Summary</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                                </thead>
+                                <tbody id="adminRoomRows">
+                                <tr><td colspan="6" class="text-center text-muted py-3">No rooms loaded.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div id="adminReservationsPanel" class="card mt-4 d-none">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                            <div>
+                                <h3 class="h5 mb-1">All Reservations</h3>
+                                <div class="small text-muted">Admin overview across all users.</div>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button id="adminReservationClearFiltersBtn" class="btn btn-outline-secondary btn-sm" type="button">Clear Filters</button>
+                                <button id="adminReservationExportBtn" class="btn btn-outline-primary btn-sm" type="button">Export CSV</button>
+                            </div>
+                        </div>
+                        <div id="adminReservationSummary" class="d-flex gap-2 flex-wrap mb-3">
+                            <span class="badge text-bg-secondary">Total: 0</span>
+                            <span class="badge text-bg-secondary">Today: 0</span>
+                            <span class="badge text-bg-secondary">Active: 0</span>
+                        </div>
+                        <div id="adminReservationFilterHint" class="small text-muted mb-2 d-none"></div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-12 col-md-3">
+                                <input id="adminReservationUserFilter" class="form-control form-control-sm" type="text" placeholder="Search user, room, or status">
+                            </div>
+                            <div class="col-12 col-md-3">
+                                <select id="adminReservationRoomFilter" class="form-select form-select-sm">
+                                    <option value="all" selected>All rooms</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-3">
+                                <input id="adminReservationDateFilter" class="form-control form-control-sm" type="date">
+                            </div>
+                            <div class="col-12 col-md-3 d-flex justify-content-md-end">
+                                <button id="adminReservationRefreshBtn" class="btn btn-outline-secondary btn-sm" type="button">Refresh</button>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Room</th>
+                                    <th>When</th>
+                                    <th>Group</th>
+                                    <th>Status</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                                </thead>
+                                <tbody id="adminReservationRows">
+                                <tr><td colspan="6" class="text-center text-muted py-3">No reservations loaded.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -646,6 +781,15 @@
             </section>
         </div>
     </main>
+</div>
+
+<div class="toast-container position-fixed top-0 end-0 p-3">
+    <div id="actionToast" class="toast align-items-center text-bg-dark border-0" role="status" aria-live="polite" aria-atomic="true">
+        <div class="d-flex">
+            <div id="actionToastBody" class="toast-body fs-5 fw-semibold">Saved.</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
 </div>
 
 <!-- -------------------- Scheduler Modal -------------------- -->

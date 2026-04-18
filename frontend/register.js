@@ -28,13 +28,11 @@ registerForm.addEventListener("submit", async (event) => {
     const name = document.getElementById("name").value.trim();
     const email = document.getElementById("email").value.trim();
     const password = document.getElementById("password").value.trim();
-    const role = document.getElementById("role").value;
-
     clearError();
     clearSuccess();
 
-    if (!name || !email || !password || !role) {
-        showError("Name, email, password, and role are required.");
+    if (!name || !email || !password) {
+        showError("Name, email, and password are required.");
         return;
     }
 
@@ -42,7 +40,7 @@ registerForm.addEventListener("submit", async (event) => {
         const res = await fetch("/api/register", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name, email, password, role })
+            body: JSON.stringify({ name, email, password })
         });
 
         if (!res.ok) {
