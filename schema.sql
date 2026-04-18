@@ -15,7 +15,10 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS rooms (
                                      id INTEGER PRIMARY KEY AUTOINCREMENT,
                                      name TEXT NOT NULL,
-                                     capacity INTEGER NOT NULL
+                                     capacity INTEGER NOT NULL,
+                                     note TEXT NOT NULL DEFAULT '',
+                                     is_active INTEGER NOT NULL DEFAULT 1,
+                                     deactivation_reason TEXT NOT NULL DEFAULT ''
 );
 
 -- ------------------------

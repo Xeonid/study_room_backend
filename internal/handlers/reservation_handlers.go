@@ -143,13 +143,28 @@ func (h *ReservationHandler) UpdateReservation(w http.ResponseWriter, r *http.Re
 func (h *ReservationHandler) GetReservations(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(middleware.UserIDKey).(int)
 
-	rows, err := h.DB.Query(`
-		SELECT reservations.id, reservations.room_id, COALESCE(rooms.name, 'Room #' || reservations.room_id), rooms.capacity, reservations.start_time, reservations.end_time, reservations.attendee_count, reservations.status
+	h.writeReservationsList(w, `
+		SELECT reservations.id, reservations.room_id, COALESCE(rooms.name, 'Room #' || reservations.room_id), rooms.capacity, reservations.start_time, reservations.end_time, reservations.attendee_count, reservations.status, '' AS user_name, '' AS user_email
 		FROM reservations
 		LEFT JOIN rooms ON reservations.room_id = rooms.id
 		WHERE user_id = ?
 		ORDER BY reservations.start_time DESC
 	`, userID)
+}
+
+func (h *ReservationHandler) AdminGetReservations(w http.ResponseWriter, r *http.Request) {
+	h.writeReservationsList(w, `
+		SELECT reservations.id, reservations.room_id, COALESCE(rooms.name, 'Room #' || reservations.room_id), rooms.capacity, reservations.start_time, reservations.end_time, reservations.attendee_count, reservations.status, users.name, users.email
+		FROM reservations
+		LEFT JOIN rooms ON reservations.room_id = rooms.id
+		LEFT JOIN users ON reservations.user_id = users.id
+		ORDER BY reservations.start_time DESC
+	`)
+}
+
+func (h *ReservationHandler) writeReservationsList(w http.ResponseWriter, query string, args ...interface{}) {
+	rows, err := h.DB.Query(`
+	`+query, args...)
 	if err != nil {
 		http.Error(w, "Failed to fetch reservations", http.StatusInternalServerError)
 		return
@@ -161,10 +176,10 @@ func (h *ReservationHandler) GetReservations(w http.ResponseWriter, r *http.Requ
 		var id, roomID int
 		var roomCapacity sql.NullInt64
 		var attendeeCount int
-		var roomName string
+		var roomName, userName, userEmail string
 		var start, end time.Time
 		var status string
-		if err := rows.Scan(&id, &roomID, &roomName, &roomCapacity, &start, &end, &attendeeCount, &status); err != nil {
+		if err := rows.Scan(&id, &roomID, &roomName, &roomCapacity, &start, &end, &attendeeCount, &status, &userName, &userEmail); err != nil {
 			http.Error(w, "Failed to parse reservations", http.StatusInternalServerError)
 			return
 		}
@@ -179,6 +194,8 @@ func (h *ReservationHandler) GetReservations(w http.ResponseWriter, r *http.Requ
 			"attendee_count": attendeeCount,
 			"room_capacity":  nullIntToValue(roomCapacity),
 			"status":         status,
+			"user_name":      userName,
+			"user_email":     userEmail,
 		})
 	}
 
@@ -217,6 +234,36 @@ func (h *ReservationHandler) DeleteReservation(w http.ResponseWriter, r *http.Re
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
 		http.Error(w, "Reservation not found or not owned by you", http.StatusNotFound)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"message": "Reservation deleted"})
+}
+
+func (h *ReservationHandler) AdminDeleteReservation(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	resID, err := reservationIDFromRequest(r)
+	if err != nil {
+		http.Error(w, "Invalid reservation ID", http.StatusBadRequest)
+		return
+	}
+
+	result, err := h.DB.Exec(`
+        DELETE FROM reservations
+        WHERE id = ?
+    `, resID)
+	if err != nil {
+		http.Error(w, "Failed to delete reservation", http.StatusInternalServerError)
+		return
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		http.Error(w, "Reservation not found", http.StatusNotFound)
 		return
 	}
 

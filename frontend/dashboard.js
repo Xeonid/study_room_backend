@@ -25,6 +25,49 @@ function renderWelcomeUserName() {
     host.textContent = getStoredDisplayName();
 }
 
+function decodeJWTPayload(token) {
+    try {
+        const payload = token.split(".")[1];
+        if (!payload) return null;
+        const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+        const decoded = atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "="));
+        return JSON.parse(decoded);
+    } catch (err) {
+        return null;
+    }
+}
+
+function getStoredUserRole() {
+    const directRole = (localStorage.getItem("user_role") || "").trim().toLowerCase();
+    if (directRole) {
+        return directRole;
+    }
+
+    const token = getToken();
+    const payload = token ? decodeJWTPayload(token) : null;
+    const tokenRole = String(payload?.role || "").trim().toLowerCase();
+    if (tokenRole) {
+        localStorage.setItem("user_role", tokenRole);
+        return tokenRole;
+    }
+
+    return "student";
+}
+
+function renderWelcomeUserRole() {
+    const host = document.getElementById("welcomeUserRole");
+    if (!host) return;
+    host.textContent = getStoredUserRole() || "student";
+}
+
+function logout() {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user_email");
+    localStorage.removeItem("user_name");
+    localStorage.removeItem("user_role");
+    location.href = "index.html";
+}
+
 async function writeJSON(res) {
     try {
         return await res.json();
@@ -34,6 +77,40 @@ async function writeJSON(res) {
     }
 }
 
+function normalizeToastVariant(variant) {
+    if (variant === "success" || variant === "danger") return variant;
+    if (variant === "error" || variant === "failure") return "danger";
+    return "dark";
+}
+
+function showToast(message, variant = "dark", toastID = "actionToast", bodyID = "actionToastBody") {
+    const toastEl = document.getElementById(toastID);
+    const bodyEl = document.getElementById(bodyID);
+    if (!toastEl || !bodyEl) return;
+
+    const resolvedVariant = normalizeToastVariant(variant);
+    const isInlineToast = toastID === "reservationActionToast";
+    toastEl.className = isInlineToast
+        ? `toast align-items-center border-0 w-100 text-${resolvedVariant === "danger" ? "white" : "dark"}`
+        : `toast align-items-center text-bg-${resolvedVariant} border-0`;
+    if (isInlineToast) {
+        toastEl.style.backgroundColor = resolvedVariant === "success" ? "#d1e7dd" : "#dc3545";
+    } else {
+        toastEl.style.backgroundColor = "";
+    }
+    bodyEl.textContent = message;
+
+    if (typeof bootstrap !== "undefined" && typeof bootstrap.Toast === "function") {
+        bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 2600 }).show();
+        return;
+    }
+
+    toastEl.classList.add("show");
+    window.setTimeout(() => {
+        toastEl.classList.remove("show");
+    }, 2600);
+}
+
 // -------------------- Reservation Scheduler State --------------------
 const schedulerState = {
     selectedDate: null,
@@ -41,6 +118,11 @@ const schedulerState = {
     endDateTime: null,
     calendar: null,
     modal: null
+};
+
+const availabilityFeedbackState = {
+    variant: "secondary",
+    message: "Choose date, time, and group size to load matching rooms."
 };
 
 function createOption(value, label) {
@@ -332,7 +414,9 @@ function initSchedulerModal() {
 const roomNameByID = new Map();
 const roomDetailsByID = new Map();
 let reservationsCache = [];
+let adminReservationsCache = [];
 let editingReservationID = null;
+let editingRoomID = null;
 let calendarViewDate = new Date();
 let calendarViewMode = "month";
 let calendarStatusFilter = "all";
@@ -343,6 +427,13 @@ const listingState = {
     search: "",
     sort: "start_desc"
 };
+const adminReservationFilters = {
+    userQuery: "",
+    roomID: "all",
+    date: ""
+};
+let adminViewMode = "rooms";
+let adminRoomSearchQuery = "";
 
 function toLocalDayKey(date) {
     const year = date.getFullYear();
@@ -362,6 +453,14 @@ function escapeHTML(value) {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#39;");
+}
+
+function csvEscape(value) {
+    const text = String(value ?? "");
+    if (/[",\n]/.test(text)) {
+        return `"${text.replace(/"/g, "\"\"")}"`;
+    }
+    return text;
 }
 
 function isReservationActive(event) {
@@ -1115,14 +1214,524 @@ function setRoomAvailabilityHint(message, isError = false) {
     hint.classList.toggle("text-muted", !isError);
 }
 
+function setAvailabilityFeedback(variant, message) {
+    availabilityFeedbackState.variant = variant;
+    availabilityFeedbackState.message = message;
+
+    const host = document.getElementById("roomAvailabilityFeedback");
+    const body = document.getElementById("roomAvailabilityFeedbackBody");
+    if (!host || !body) return;
+
+    host.classList.remove("d-none");
+    body.className = `alert alert-${variant} py-2 px-3 mb-0`;
+    body.textContent = message;
+}
+
+function updateAdminRoomFormMode() {
+    const submitBtn = document.getElementById("adminRoomSubmitBtn");
+    if (!submitBtn) return;
+    submitBtn.textContent = "Create Room";
+}
+
+function resetAdminRoomForm() {
+    editingRoomID = null;
+    const form = document.getElementById("adminRoomForm");
+    if (form) form.reset();
+    const activeInput = document.getElementById("adminRoomIsActive");
+    if (activeInput) activeInput.checked = true;
+    updateAdminRoomFormMode();
+}
+
+function getFilteredAdminRooms() {
+    const query = adminRoomSearchQuery.trim().toLowerCase();
+    const rooms = Array.from(roomDetailsByID.values()).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    if (!query) {
+        return rooms;
+    }
+
+    return rooms.filter(room => {
+        const haystack = [
+            room.name,
+            room.note,
+            room.deactivation_reason,
+            room.is_active ? "active" : "inactive"
+        ].join(" ").toLowerCase();
+        return haystack.includes(query);
+    });
+}
+
+function adminRoomStatusHTML(room) {
+    const isActive = Boolean(room.is_active);
+    const reason = String(room.deactivation_reason || "").trim();
+    const upcomingCount = Number(room.upcoming_reservations || 0);
+    const badgeClass = isActive ? "text-bg-success" : "text-bg-secondary";
+    const warningHTML = !isActive && upcomingCount > 0
+        ? `<div class="small text-danger fw-semibold mt-1">Inactive with ${upcomingCount} upcoming booking${upcomingCount === 1 ? "" : "s"}.</div>`
+        : "";
+    const reasonHTML = !isActive && reason
+        ? `<div class="small text-muted mt-1">${escapeHTML(reason)}</div>`
+        : (!isActive ? `<div class="small text-muted mt-1">No reason added.</div>` : "");
+    return `
+        <span class="badge ${badgeClass}">${isActive ? "Active" : "Inactive"}</span>
+        ${reasonHTML}
+        ${warningHTML}
+    `;
+}
+
+function adminRoomSummaryHTML(room) {
+    return `
+        <div class="small">Available now: <span class="fw-semibold">${Number(room.available_capacity ?? room.capacity ?? 0)}</span></div>
+        <div class="small text-muted">Active now: ${Number(room.active_now_reservations || 0)} | Today: ${Number(room.reservations_today || 0)} | Upcoming: ${Number(room.upcoming_reservations || 0)} | Week: ${Number(room.reservations_this_week || 0)}</div>
+    `;
+}
+
+function renderAdminRoomPanel() {
+    const adminTabItem = document.getElementById("admin-tab-item");
+    const adminTab = document.getElementById("admin-tab");
+    const panel = document.getElementById("adminRoomPanel");
+    const reservationsPanel = document.getElementById("adminReservationsPanel");
+    const roomsViewBtn = document.getElementById("adminRoomsViewBtn");
+    const reservationsViewBtn = document.getElementById("adminReservationsViewBtn");
+    const rowsHost = document.getElementById("adminRoomRows");
+    if (!panel || !rowsHost || !adminTabItem || !adminTab || !reservationsPanel || !roomsViewBtn || !reservationsViewBtn) return;
+
+    const isAdmin = getStoredUserRole() === "admin";
+    adminTabItem.classList.toggle("d-none", !isAdmin);
+    adminTab.classList.toggle("d-none", !isAdmin);
+    if (!isAdmin) {
+        const activeAdminTab = document.getElementById("admin-tab-btn");
+        if (activeAdminTab?.classList.contains("active")) {
+            const dashboardTabBtn = document.getElementById("dashboard-tab-btn");
+            if (dashboardTabBtn) {
+                if (typeof bootstrap !== "undefined" && typeof bootstrap.Tab === "function") {
+                    bootstrap.Tab.getOrCreateInstance(dashboardTabBtn).show();
+                } else {
+                    dashboardTabBtn.click();
+                }
+            }
+        }
+        return;
+    }
+
+    panel.classList.toggle("d-none", adminViewMode !== "rooms");
+    reservationsPanel.classList.toggle("d-none", adminViewMode !== "reservations");
+    roomsViewBtn.className = adminViewMode === "rooms" ? "btn btn-primary btn-sm" : "btn btn-outline-primary btn-sm";
+    reservationsViewBtn.className = adminViewMode === "reservations" ? "btn btn-primary btn-sm" : "btn btn-outline-primary btn-sm";
+
+    const rooms = getFilteredAdminRooms();
+    if (rooms.length === 0) {
+        rowsHost.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-3">No rooms loaded.</td></tr>`;
+        return;
+    }
+
+    rowsHost.innerHTML = rooms.map(room => {
+        const isEditing = editingRoomID === Number(room.id);
+        if (isEditing) {
+            return `
+        <tr>
+            <td><input class="form-control" id="inlineRoomName-${room.id}" type="text" value="${escapeHTML(String(room.name || ""))}"></td>
+            <td><input class="form-control" id="inlineRoomCapacity-${room.id}" type="number" min="1" step="1" value="${Number(room.capacity || 0)}"></td>
+            <td><input class="form-control" id="inlineRoomNote-${room.id}" type="text" maxlength="160" value="${escapeHTML(String(room.note || ""))}"></td>
+            <td>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" id="inlineRoomActive-${room.id}" type="checkbox" ${room.is_active ? "checked" : ""}>
+                    <label class="form-check-label" for="inlineRoomActive-${room.id}">Active</label>
+                </div>
+                <input class="form-control" id="inlineRoomDeactivationReason-${room.id}" type="text" maxlength="160" placeholder="Deactivation reason" value="${escapeHTML(String(room.deactivation_reason || ""))}">
+            </td>
+            <td>${adminRoomSummaryHTML(room)}</td>
+            <td class="text-end">
+                <div class="d-flex justify-content-end gap-2">
+                    <button class="btn btn-primary js-admin-room-save" type="button" data-room-id="${room.id}">Save</button>
+                    <button class="btn btn-outline-secondary js-admin-room-cancel" type="button">Cancel</button>
+                </div>
+            </td>
+        </tr>
+    `;
+        }
+
+        return `
+        <tr>
+            <td>${escapeHTML(String(room.name || ""))}</td>
+            <td>${Number(room.capacity || 0)}</td>
+            <td>${escapeHTML(String(room.note || "")) || '<span class="text-muted">-</span>'}</td>
+            <td>${adminRoomStatusHTML(room)}</td>
+            <td>${adminRoomSummaryHTML(room)}</td>
+            <td class="text-end">
+                <div class="d-flex justify-content-end gap-2">
+                    <button class="btn btn-outline-primary btn-sm js-admin-room-edit" type="button" data-room-id="${room.id}">Edit</button>
+                    ${room.is_active ? `<button class="btn btn-outline-warning btn-sm js-admin-room-deactivate" type="button" data-room-id="${room.id}">Deactivate</button>` : ""}
+                    <button class="btn btn-outline-danger btn-sm js-admin-room-delete" type="button" data-room-id="${room.id}">Delete</button>
+                </div>
+            </td>
+        </tr>
+    `;
+    }).join("");
+}
+
+function fillAdminReservationRoomFilter() {
+    const select = document.getElementById("adminReservationRoomFilter");
+    if (!select) return;
+
+    const currentValue = select.value || adminReservationFilters.roomID;
+    const rooms = Array.from(roomNameByID.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+    select.innerHTML = `<option value="all">All rooms</option>`;
+    rooms.forEach(([id, name]) => {
+        const option = document.createElement("option");
+        option.value = String(id);
+        option.textContent = name;
+        select.appendChild(option);
+    });
+    select.value = rooms.some(([id]) => String(id) === String(currentValue)) ? currentValue : "all";
+}
+
+function getFilteredAdminReservations() {
+    const query = adminReservationFilters.userQuery.trim().toLowerCase();
+    return adminReservationsCache.filter(reservation => {
+        const searchText = [
+            reservation.user_name,
+            reservation.user_email,
+            reservation.room_name,
+            reservation.room,
+            reservation.status
+        ].join(" ").toLowerCase();
+        if (query && !searchText.includes(query)) {
+            return false;
+        }
+        if (adminReservationFilters.roomID !== "all" && String(reservation.room_id) !== String(adminReservationFilters.roomID)) {
+            return false;
+        }
+        if (adminReservationFilters.date) {
+            const startDate = new Date(reservation.start_time);
+            const dayKey = Number.isNaN(startDate.getTime()) ? "" : toLocalDayKey(startDate);
+            if (dayKey !== adminReservationFilters.date) {
+                return false;
+            }
+        }
+        return true;
+    });
+}
+
+function syncAdminReservationFilterInputs() {
+    const userFilter = document.getElementById("adminReservationUserFilter");
+    const roomFilter = document.getElementById("adminReservationRoomFilter");
+    const dateFilter = document.getElementById("adminReservationDateFilter");
+    if (userFilter) userFilter.value = adminReservationFilters.userQuery;
+    if (roomFilter) roomFilter.value = adminReservationFilters.roomID;
+    if (dateFilter) dateFilter.value = adminReservationFilters.date;
+}
+
+function renderAdminReservations() {
+    const rowsHost = document.getElementById("adminReservationRows");
+    const summaryHost = document.getElementById("adminReservationSummary");
+    const filterHint = document.getElementById("adminReservationFilterHint");
+    if (!rowsHost) return;
+    if (getStoredUserRole() !== "admin") return;
+
+    const filtered = getFilteredAdminReservations();
+
+    if (summaryHost) {
+        const now = new Date();
+        const todayKey = toLocalDayKey(now);
+        const todayCount = filtered.filter(reservation => {
+            const startDate = new Date(reservation.start_time);
+            return !Number.isNaN(startDate.getTime()) && toLocalDayKey(startDate) === todayKey;
+        }).length;
+        const activeCount = filtered.filter(reservation => {
+            const startDate = new Date(reservation.start_time);
+            const endDate = new Date(reservation.end_time);
+            return !Number.isNaN(startDate.getTime()) && !Number.isNaN(endDate.getTime()) && startDate <= now && endDate >= now;
+        }).length;
+        summaryHost.innerHTML = `
+            <span class="badge text-bg-secondary">Total: ${filtered.length}</span>
+            <span class="badge text-bg-secondary">Today: ${todayCount}</span>
+            <span class="badge text-bg-secondary">Active: ${activeCount}</span>
+        `;
+    }
+    if (filterHint) {
+        const query = adminReservationFilters.userQuery.trim();
+        if (query) {
+            filterHint.textContent = `Search is filtering by: ${query}`;
+            filterHint.classList.remove("d-none");
+        } else {
+            filterHint.textContent = "";
+            filterHint.classList.add("d-none");
+        }
+    }
+
+    if (filtered.length === 0) {
+        rowsHost.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-3">No reservations match the current filters.</td></tr>`;
+        return;
+    }
+
+    rowsHost.innerHTML = filtered.map(reservation => `
+        <tr>
+            <td>
+                <button class="btn btn-link p-0 text-start text-decoration-none fw-semibold js-admin-user-drilldown" type="button" data-user-query="${escapeHTML(reservation.user_email || reservation.user_name || "")}">${escapeHTML(reservation.user_name || "Unknown user")}</button>
+                <div class="small text-muted">${escapeHTML(reservation.user_email || "")}</div>
+            </td>
+            <td>${escapeHTML(reservation.room_name || reservation.room || `Room #${reservation.room_id}`)}</td>
+            <td>
+                <div>${escapeHTML(formatDisplayDateTime(new Date(reservation.start_time)))}</div>
+                <div class="small text-muted">to ${escapeHTML(formatDisplayDateTime(new Date(reservation.end_time)))}</div>
+            </td>
+            <td>${escapeHTML(String(reservation.attendee_count || ""))}</td>
+            <td>${escapeHTML(String(reservation.status || ""))}</td>
+            <td class="text-end">
+                <button class="btn btn-outline-danger btn-sm js-admin-delete-reservation" type="button" data-reservation-id="${reservation.id}">Delete</button>
+            </td>
+        </tr>
+    `).join("");
+}
+
+async function fetchAdminReservations() {
+    const token = getToken();
+    if (!token || getStoredUserRole() !== "admin") return;
+
+    const res = await fetch("/api/admin/reservations", {
+        headers: { "Authorization": "Bearer " + token }
+    });
+    if (!res.ok) {
+        const err = await res.text();
+        showToast(err || "Failed to load admin reservations.", "danger");
+        return;
+    }
+
+    const data = await writeJSON(res);
+    adminReservationsCache = Array.isArray(data) ? data : [];
+    renderAdminReservations();
+}
+
+function clearAdminReservationFilters() {
+    adminReservationFilters.userQuery = "";
+    adminReservationFilters.roomID = "all";
+    adminReservationFilters.date = "";
+    syncAdminReservationFilterInputs();
+    renderAdminReservations();
+}
+
+function exportAdminReservationsCSV() {
+    if (getStoredUserRole() !== "admin") return;
+
+    const rows = getFilteredAdminReservations();
+    if (rows.length === 0) {
+        showToast("No reservations match the current filters.", "danger");
+        return;
+    }
+
+    const lines = [
+        ["Reservation ID", "User Name", "User Email", "Room", "Start Time", "End Time", "Group Size", "Status"]
+            .map(csvEscape)
+            .join(",")
+    ];
+    rows.forEach(reservation => {
+        lines.push([
+            reservation.id,
+            reservation.user_name || "",
+            reservation.user_email || "",
+            reservation.room_name || reservation.room || `Room #${reservation.room_id}`,
+            reservation.start_time,
+            reservation.end_time,
+            reservation.attendee_count || "",
+            reservation.status || ""
+        ].map(csvEscape).join(","));
+    });
+
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `admin-reservations-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    showToast("Reservations exported.", "success");
+}
+
+function beginAdminRoomEdit(roomID) {
+    const room = roomDetailsByID.get(Number(roomID));
+    if (!room) {
+        showToast("Room not found.", "danger");
+        return;
+    }
+
+    editingRoomID = Number(roomID);
+    renderAdminRoomPanel();
+}
+
+async function saveAdminRoom(event) {
+    event.preventDefault();
+    const token = getToken();
+    if (!token || getStoredUserRole() !== "admin") return;
+
+    const name = document.getElementById("adminRoomName").value.trim();
+    const capacity = Number(document.getElementById("adminRoomCapacity").value);
+    const note = document.getElementById("adminRoomNote").value.trim();
+    const isActive = Boolean(document.getElementById("adminRoomIsActive").checked);
+    if (!name || !Number.isInteger(capacity) || capacity <= 0) {
+        showToast("Enter a valid room name and capacity.", "danger");
+        return;
+    }
+
+    const endpoint = "/api/rooms/create";
+    const method = "POST";
+    const res = await fetch(endpoint, {
+        method,
+        headers: {
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ name, capacity, note, is_active: isActive, deactivation_reason: "" })
+    });
+
+    if (!res.ok) {
+        const err = await res.text();
+        showToast(err || "Failed to create room.", "danger");
+        return;
+    }
+
+    showToast("Room created.", "success");
+    resetAdminRoomForm();
+    await fetchAllRooms();
+    await refreshAvailableRooms();
+}
+
+async function saveInlineAdminRoom(roomID) {
+    const token = getToken();
+    if (!token || getStoredUserRole() !== "admin") return;
+
+    const nameInput = document.getElementById(`inlineRoomName-${roomID}`);
+    const capacityInput = document.getElementById(`inlineRoomCapacity-${roomID}`);
+    const noteInput = document.getElementById(`inlineRoomNote-${roomID}`);
+    const activeInput = document.getElementById(`inlineRoomActive-${roomID}`);
+    const deactivationReasonInput = document.getElementById(`inlineRoomDeactivationReason-${roomID}`);
+    if (!nameInput || !capacityInput || !noteInput || !activeInput || !deactivationReasonInput) return;
+
+    const name = nameInput.value.trim();
+    const capacity = Number(capacityInput.value);
+    const note = noteInput.value.trim();
+    const isActive = Boolean(activeInput.checked);
+    const deactivationReason = isActive ? "" : deactivationReasonInput.value.trim();
+    if (!name || !Number.isInteger(capacity) || capacity <= 0) {
+        showToast("Enter a valid room name and capacity.", "danger");
+        return;
+    }
+
+    const res = await fetch(`/api/rooms/update?id=${roomID}`, {
+        method: "PUT",
+        headers: {
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ name, capacity, note, is_active: isActive, deactivation_reason: deactivationReason })
+    });
+    if (!res.ok) {
+        const err = await res.text();
+        showToast(err || "Failed to update room.", "danger");
+        return;
+    }
+
+    editingRoomID = null;
+    showToast("Room updated.", "success");
+    await fetchAllRooms();
+    await refreshAvailableRooms();
+}
+
+async function deleteAdminRoom(roomID) {
+    const token = getToken();
+    if (!token || getStoredUserRole() !== "admin") return;
+    if (!window.confirm("Delete this room?")) {
+        return;
+    }
+
+    const res = await fetch(`/api/rooms/delete?id=${roomID}`, {
+        method: "DELETE",
+        headers: { "Authorization": "Bearer " + token }
+    });
+    if (!res.ok) {
+        const err = await res.text();
+        showToast(err || "Failed to delete room.", "danger");
+        return;
+    }
+
+    if (editingRoomID === Number(roomID)) {
+        resetAdminRoomForm();
+    }
+    showToast("Room deleted.", "success");
+    await fetchAllRooms();
+    await refreshAvailableRooms();
+}
+
+async function deactivateAdminRoom(roomID) {
+    const token = getToken();
+    if (!token || getStoredUserRole() !== "admin") return;
+
+    const shouldDeactivate = window.confirm("Deactivate this room? It will stop appearing in booking options.");
+    if (!shouldDeactivate) {
+        return;
+    }
+    const cancelFuture = window.confirm("Also cancel future reservations for this room?");
+    const reason = (window.prompt("Add an optional deactivation reason for admins and users.", "") || "").trim();
+
+    const query = new URLSearchParams({ id: String(roomID) });
+    const res = await fetch(`/api/rooms/deactivate?${query.toString()}`, {
+        method: "POST",
+        headers: {
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ cancel_future: cancelFuture, reason })
+    });
+    if (!res.ok) {
+        const err = await res.text();
+        showToast(err || "Failed to deactivate room.", "danger");
+        return;
+    }
+
+    const data = await writeJSON(res);
+    const cancelledCount = Number(data?.cancelled_future_reservations || 0);
+    const suffix = cancelFuture ? ` Cancelled future reservations: ${cancelledCount}.` : "";
+    showToast(`Room deactivated.${suffix}`, "success");
+    await fetchReservations();
+    await fetchAdminReservations();
+    await fetchAllRooms();
+    await refreshAvailableRooms();
+}
+
+async function deleteAdminReservation(reservationID) {
+    const token = getToken();
+    if (!token || getStoredUserRole() !== "admin") return;
+    if (!window.confirm("Delete this reservation?")) {
+        return;
+    }
+
+    const res = await fetch(`/api/admin/reservations?id=${reservationID}`, {
+        method: "DELETE",
+        headers: { "Authorization": "Bearer " + token }
+    });
+    if (!res.ok) {
+        const err = await res.text();
+        showToast(err || "Failed to delete reservation.", "danger");
+        return;
+    }
+
+    showToast("Reservation deleted.", "success");
+    await fetchReservations();
+    await fetchAdminReservations();
+    await refreshAvailableRooms();
+}
+
 function updateReservationFormMode() {
     const notice = document.getElementById("reservationEditNotice");
     const submitBtn = document.getElementById("reservationSubmitBtn");
+    const deleteBtn = document.getElementById("reservationDeleteEditBtn");
     const cancelBtn = document.getElementById("reservationCancelEditBtn");
-    if (!notice || !submitBtn || !cancelBtn) return;
+    if (!notice || !submitBtn || !deleteBtn || !cancelBtn) return;
 
     const isEditing = editingReservationID !== null;
     notice.classList.toggle("d-none", !isEditing);
+    deleteBtn.classList.toggle("d-none", !isEditing);
     cancelBtn.classList.toggle("d-none", !isEditing);
     submitBtn.textContent = isEditing ? "Save Reservation" : "Reserve Room";
 }
@@ -1169,6 +1778,7 @@ function populateRoomSelect(rooms, attendeeCount = 0) {
         select.appendChild(createOption("", "No rooms available for this group and time"));
         select.value = "";
         setRoomAvailabilityHint(`No rooms can fit ${attendeeCount || "this"} attendee requirement for the selected time.`, true);
+        setAvailabilityFeedback("danger", "No rooms can satisfy this reservation right now. Adjust the time or reduce the group size.");
         return;
     }
 
@@ -1187,7 +1797,8 @@ function populateRoomSelect(rooms, attendeeCount = 0) {
             ? `${availableCapacity}/${room.capacity} seats available`
             : `full for this slot (${room.capacity} total)`;
         const fitLabel = fitsRequiredCapacity ? "" : " - too small for this group";
-        option.textContent = `${room.name} (${capacityLabel})${fitLabel}`;
+        const noteLabel = room.note ? ` - ${room.note}` : "";
+        option.textContent = `${room.name} (${capacityLabel})${fitLabel}${noteLabel}`;
         select.appendChild(option);
     });
 
@@ -1197,6 +1808,7 @@ function populateRoomSelect(rooms, attendeeCount = 0) {
         select.insertBefore(placeholder, select.firstChild);
         select.value = "";
         setRoomAvailabilityHint(`No rooms can fit ${attendeeCount || "this"} attendee requirement for the selected time.`, true);
+        setAvailabilityFeedback("danger", "All rooms are full or too small for the selected time window.");
         return;
     }
 
@@ -1204,13 +1816,19 @@ function populateRoomSelect(rooms, attendeeCount = 0) {
     const firstFittingRoom = rooms.find(room => room.fits_required_capacity !== false);
     select.value = hasPrevious ? previousValue : String(firstFittingRoom?.id ?? "");
     setRoomAvailabilityHint(`${fittingRoomCount} room${fittingRoomCount === 1 ? "" : "s"} fit this reservation. Disabled options do not have enough seats.`);
+    if (fittingRoomCount === 1) {
+        setAvailabilityFeedback("success", "1 room currently fits this reservation.");
+    } else {
+        setAvailabilityFeedback("info", `${fittingRoomCount} rooms currently fit this reservation.`);
+    }
 }
 
 async function fetchAllRooms() {
     const token = getToken();
     if (!token) return;
 
-    const res = await fetch("/api/rooms", {
+    const roomsURL = getStoredUserRole() === "admin" ? "/api/rooms?include_inactive=true" : "/api/rooms";
+    const res = await fetch(roomsURL, {
         headers: { "Authorization": "Bearer " + token }
     });
     if (!res.ok) {
@@ -1231,6 +1849,8 @@ async function fetchAllRooms() {
     });
 
     fillCalendarRoomFilterOptions();
+    fillAdminReservationRoomFilter();
+    renderAdminRoomPanel();
 }
 
 async function refreshAvailableRooms() {
@@ -1241,6 +1861,7 @@ async function refreshAvailableRooms() {
     if (!params) {
         populateRoomSelect([]);
         setRoomAvailabilityHint("Enter a valid group size, date, and time to load matching rooms.", true);
+        setAvailabilityFeedback("secondary", "Select a valid date, start time, end time, and group size to preview availability.");
         return;
     }
 
@@ -1254,6 +1875,7 @@ async function refreshAvailableRooms() {
             }));
         populateRoomSelect(rooms, params.attendeeCount);
         setRoomAvailabilityHint("Choose date and time to see live remaining seats for each room.");
+        setAvailabilityFeedback("secondary", "Group size is set. Choose a date and time to calculate live availability.");
         return;
     }
 
@@ -1263,6 +1885,9 @@ async function refreshAvailableRooms() {
         required_capacity: String(params.attendeeCount),
         include_unavailable: "true"
     });
+    if (editingReservationID !== null) {
+        query.set("exclude_reservation_id", String(editingReservationID));
+    }
     const res = await fetch(`/api/rooms?${query.toString()}`, {
         headers: { "Authorization": "Bearer " + token }
     });
@@ -1380,10 +2005,16 @@ async function createReservation(event) {
 
     if (!res.ok) {
         const err = await res.text();
-        alert("Failed to create reservation: " + err);
+        showToast(
+            `Failed to ${isEditing ? "update" : "create"} reservation: ${err}`,
+            "danger",
+            "reservationActionToast",
+            "reservationActionToastBody"
+        );
         return;
     }
 
+    showToast(isEditing ? "Reservation updated." : "Reservation created.", "success", "reservationActionToast", "reservationActionToastBody");
     syncManualInputsFromState();
     resetReservationFormMode();
     await fetchReservations();
@@ -1391,14 +2022,15 @@ async function createReservation(event) {
 }
 
 // -------------------- Delete Reservation --------------------
-async function deleteReservation(resID) {
+async function deleteReservation(resID, options = {}) {
     const token = getToken();
     if (!token) return;
     if (!Number.isInteger(Number(resID))) {
         alert("Invalid reservation ID.");
         return;
     }
-    if (!window.confirm("Delete this booking?")) {
+    const confirmationMessage = options.confirmationMessage || "Delete this booking?";
+    if (!window.confirm(confirmationMessage)) {
         return;
     }
 
@@ -1409,10 +2041,24 @@ async function deleteReservation(resID) {
 
     if (!res.ok) {
         const err = await res.text();
-        alert("Failed to delete reservation: " + err);
+        showToast(
+            `Failed to delete reservation: ${err}`,
+            "danger",
+            options.toastID || "actionToast",
+            options.toastBodyID || "actionToastBody"
+        );
         return;
     }
 
+    if (options.resetEditMode) {
+        resetReservationFormMode();
+    }
+    showToast(
+        "Reservation deleted.",
+        "success",
+        options.toastID || "actionToast",
+        options.toastBodyID || "actionToastBody"
+    );
     await fetchReservations();
     await refreshAvailableRooms();
 }
@@ -1426,16 +2072,27 @@ async function initDashboard() {
     }
 
     renderWelcomeUserName();
+    renderWelcomeUserRole();
     initBookingsCalendar();
     initSchedulerModal();
     await fetchAllRooms();
     await refreshAvailableRooms();
     await fetchReservations();
+    await fetchAdminReservations();
 
     document.getElementById("reservationForm").addEventListener("submit", createReservation);
     document.getElementById("attendeeCount").addEventListener("input", () => {
         refreshAvailableRooms().catch(err => {
             setRoomAvailabilityHint(String(err.message || err), true);
+        });
+    });
+    document.getElementById("reservationDeleteEditBtn").addEventListener("click", () => {
+        if (editingReservationID === null) return;
+        deleteReservation(editingReservationID, {
+            confirmationMessage: "Delete this reservation from the edit panel?",
+            resetEditMode: true,
+            toastID: "reservationActionToast",
+            toastBodyID: "reservationActionToastBody"
         });
     });
     document.getElementById("reservationCancelEditBtn").addEventListener("click", () => {
@@ -1445,6 +2102,124 @@ async function initDashboard() {
         });
     });
     updateReservationFormMode();
+
+    const adminRoomForm = document.getElementById("adminRoomForm");
+    const adminRoomRows = document.getElementById("adminRoomRows");
+    const adminRoomSearchInput = document.getElementById("adminRoomSearchInput");
+    const adminReservationRows = document.getElementById("adminReservationRows");
+    const adminRoomsViewBtn = document.getElementById("adminRoomsViewBtn");
+    const adminReservationsViewBtn = document.getElementById("adminReservationsViewBtn");
+    if (adminRoomForm) {
+        adminRoomForm.addEventListener("submit", saveAdminRoom);
+    }
+    if (adminRoomSearchInput) {
+        adminRoomSearchInput.addEventListener("input", () => {
+            adminRoomSearchQuery = adminRoomSearchInput.value || "";
+            renderAdminRoomPanel();
+        });
+    }
+    if (adminRoomRows) {
+        adminRoomRows.addEventListener("click", event => {
+            const editButton = event.target.closest(".js-admin-room-edit");
+            if (editButton) {
+                beginAdminRoomEdit(Number(editButton.dataset.roomId));
+                return;
+            }
+
+            const saveButton = event.target.closest(".js-admin-room-save");
+            if (saveButton) {
+                saveInlineAdminRoom(Number(saveButton.dataset.roomId));
+                return;
+            }
+
+            const cancelButton = event.target.closest(".js-admin-room-cancel");
+            if (cancelButton) {
+                editingRoomID = null;
+                renderAdminRoomPanel();
+                return;
+            }
+
+            const deleteButton = event.target.closest(".js-admin-room-delete");
+            if (deleteButton) {
+                deleteAdminRoom(Number(deleteButton.dataset.roomId));
+                return;
+            }
+
+            const deactivateButton = event.target.closest(".js-admin-room-deactivate");
+            if (deactivateButton) {
+                deactivateAdminRoom(Number(deactivateButton.dataset.roomId));
+            }
+        });
+    }
+    const adminReservationUserFilter = document.getElementById("adminReservationUserFilter");
+    const adminReservationRoomFilter = document.getElementById("adminReservationRoomFilter");
+    const adminReservationDateFilter = document.getElementById("adminReservationDateFilter");
+    const adminReservationRefreshBtn = document.getElementById("adminReservationRefreshBtn");
+    const adminReservationClearFiltersBtn = document.getElementById("adminReservationClearFiltersBtn");
+    const adminReservationExportBtn = document.getElementById("adminReservationExportBtn");
+    if (adminReservationUserFilter) {
+        adminReservationUserFilter.addEventListener("input", () => {
+            adminReservationFilters.userQuery = adminReservationUserFilter.value || "";
+            renderAdminReservations();
+        });
+    }
+    if (adminReservationRoomFilter) {
+        adminReservationRoomFilter.addEventListener("change", () => {
+            adminReservationFilters.roomID = adminReservationRoomFilter.value || "all";
+            renderAdminReservations();
+        });
+    }
+    if (adminReservationDateFilter) {
+        adminReservationDateFilter.addEventListener("change", () => {
+            adminReservationFilters.date = adminReservationDateFilter.value || "";
+            renderAdminReservations();
+        });
+    }
+    if (adminReservationRefreshBtn) {
+        adminReservationRefreshBtn.addEventListener("click", () => {
+            fetchAdminReservations();
+        });
+    }
+    if (adminReservationClearFiltersBtn) {
+        adminReservationClearFiltersBtn.addEventListener("click", clearAdminReservationFilters);
+    }
+    if (adminReservationExportBtn) {
+        adminReservationExportBtn.addEventListener("click", exportAdminReservationsCSV);
+    }
+    if (adminReservationRows) {
+        adminReservationRows.addEventListener("click", event => {
+            const userDrilldownButton = event.target.closest(".js-admin-user-drilldown");
+            if (userDrilldownButton) {
+                adminReservationFilters.userQuery = userDrilldownButton.dataset.userQuery || "";
+                syncAdminReservationFilterInputs();
+                renderAdminReservations();
+                return;
+            }
+            const deleteButton = event.target.closest(".js-admin-delete-reservation");
+            if (deleteButton) {
+                deleteAdminReservation(Number(deleteButton.dataset.reservationId));
+            }
+        });
+    }
+    if (adminRoomsViewBtn) {
+        adminRoomsViewBtn.addEventListener("click", () => {
+            adminViewMode = "rooms";
+            renderAdminRoomPanel();
+        });
+    }
+    if (adminReservationsViewBtn) {
+        adminReservationsViewBtn.addEventListener("click", () => {
+            adminViewMode = "reservations";
+            renderAdminRoomPanel();
+            renderAdminReservations();
+        });
+    }
+    const logoutBtn = document.getElementById("logoutBtn");
+    if (logoutBtn) {
+        logoutBtn.addEventListener("click", logout);
+    }
+    updateAdminRoomFormMode();
+    renderAdminRoomPanel();
 }
 
 window.addEventListener("DOMContentLoaded", initDashboard);

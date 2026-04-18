@@ -25,10 +25,14 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	if !utils.DecodeJSONBody(w, r, &body) {
 		return
 	}
-
-	if body.Role == "" {
-		body.Role = "student"
+	body.Name = strings.TrimSpace(body.Name)
+	body.Email = strings.TrimSpace(body.Email)
+	body.Password = strings.TrimSpace(body.Password)
+	if body.Name == "" || body.Email == "" || body.Password == "" {
+		http.Error(w, "Name, email, and password are required", http.StatusBadRequest)
+		return
 	}
+	body.Role = "student"
 
 	var exists int
 	err := h.DB.QueryRow(`SELECT 1 FROM users WHERE email = ?`, body.Email).Scan(&exists)
