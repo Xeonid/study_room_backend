@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -32,6 +33,10 @@
         .sidebar .nav-link.active {
             color: #0d6efd;
             background: #e7f1ff;
+        }
+
+        .sidebar-label {
+            display: none;
         }
 
         .calendar-controls {
@@ -262,6 +267,18 @@
             padding: 0 1rem 1rem;
         }
 
+        .top-scrollbar {
+            display: none;
+            overflow-x: auto;
+            overflow-y: hidden;
+            height: 14px;
+            margin-bottom: 0.4rem;
+        }
+
+        .top-scrollbar-inner {
+            height: 1px;
+        }
+
         .booking-list-head {
             background: #ffffff;
             border: 1px solid #e7eaee;
@@ -370,12 +387,128 @@
         }
 
         @media (max-width: 991px) {
+            .app-main {
+                padding: 1rem !important;
+            }
+
             .booking-filters {
                 grid-template-columns: 1fr 1fr;
+            }
+
+            .calendar-controls {
+                align-items: stretch;
             }
         }
 
         @media (max-width: 768px) {
+            .app-shell {
+                display: block !important;
+                padding-bottom: calc(92px + env(safe-area-inset-bottom));
+            }
+
+            .sidebar {
+                position: fixed;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                width: auto;
+                border-right: none;
+                border-top: 1px solid #e9ecef;
+                z-index: 1030;
+                padding: 0.5rem 0.75rem calc(0.5rem + env(safe-area-inset-bottom)) !important;
+                box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.08);
+            }
+
+            .sidebar .nav {
+                width: 100%;
+                flex-direction: row !important;
+                justify-content: space-between;
+                gap: 0.35rem !important;
+            }
+
+            .sidebar .nav-item {
+                flex: 1 1 0;
+            }
+
+            .sidebar .nav-link {
+                width: 100%;
+                height: auto;
+                min-height: 58px;
+                flex-direction: column;
+                gap: 0.2rem;
+                font-size: 1rem;
+                padding: 0.45rem 0.25rem;
+            }
+
+            .sidebar-label {
+                display: block;
+                font-size: 0.68rem;
+                font-weight: 600;
+                line-height: 1;
+            }
+
+            .app-main {
+                padding: 1rem 0.85rem !important;
+            }
+
+            .booking-topbar,
+            .booking-list-head,
+            .calendar-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .booking-list-head .form-select,
+            .calendar-controls .form-select,
+            .calendar-controls .btn-group {
+                width: 100% !important;
+            }
+
+            .booking-filters {
+                grid-template-columns: 1fr;
+            }
+
+            .timeline-pane {
+                padding: 0.85rem;
+            }
+
+            .timeline-events {
+                max-height: none;
+            }
+
+            .calendar-grid.is-week-view .calendar-day,
+            .calendar-day {
+                min-height: 0;
+            }
+
+            .calendar-day {
+                padding: 0.5rem;
+            }
+
+            .d-flex.gap-2.mt-2 {
+                flex-direction: column;
+            }
+
+            .toast-container {
+                left: 0;
+                right: 0;
+                top: 0;
+                padding: 0.75rem !important;
+            }
+
+            .toast-container .toast {
+                width: 100%;
+            }
+
+            .modal-dialog {
+                margin: 0;
+            }
+
+            .modal-content {
+                min-height: 100vh;
+                border-radius: 0;
+            }
+
             #bookingsCalendarGrid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
@@ -383,6 +516,193 @@
             #calendarWeekdays {
                 display: none;
             }
+        }
+
+        @media (max-width: 576px) {
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .booking-shell,
+            .card {
+                border-radius: 10px;
+            }
+
+            .calendar-legend {
+                gap: 0.35rem 0.5rem;
+            }
+
+            .calendar-legend-item,
+            .timeline-help,
+            .timeline-summary-chip {
+                font-size: 0.75rem;
+            }
+
+            #bookingsCalendarGrid {
+                grid-template-columns: 1fr;
+            }
+
+            .table-responsive {
+                font-size: 0.88rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .top-scrollbar {
+                display: block;
+            }
+        }
+
+        body.mobile-preview {
+            background: #eef2f6;
+        }
+
+        body.mobile-preview .app-shell {
+            display: block !important;
+            max-width: 430px;
+            margin: 0 auto;
+            min-height: 100vh;
+            padding-bottom: 92px;
+            background: #fff;
+            box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.05), 0 24px 60px rgba(15, 23, 42, 0.12);
+        }
+
+        body.mobile-preview .sidebar {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: auto;
+            border-right: none;
+            border-top: 1px solid #e9ecef;
+            z-index: 1030;
+            padding: 0.5rem 0.75rem !important;
+            box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.08);
+        }
+
+        body.mobile-preview .sidebar .nav {
+            width: 100%;
+            flex-direction: row !important;
+            justify-content: space-between;
+            gap: 0.35rem !important;
+        }
+
+        body.mobile-preview .sidebar .nav-item {
+            flex: 1 1 0;
+        }
+
+        body.mobile-preview .sidebar .nav-link {
+            width: 100%;
+            height: auto;
+            min-height: 58px;
+            flex-direction: column;
+            gap: 0.2rem;
+            font-size: 1rem;
+            padding: 0.45rem 0.25rem;
+        }
+
+        body.mobile-preview .sidebar-label {
+            display: block;
+            font-size: 0.68rem;
+            font-weight: 600;
+            line-height: 1;
+        }
+
+        body.mobile-preview .app-main {
+            padding: 1rem 0.85rem !important;
+        }
+
+        body.mobile-preview .booking-topbar,
+        body.mobile-preview .booking-list-head,
+        body.mobile-preview .calendar-controls {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        body.mobile-preview .booking-list-head .form-select,
+        body.mobile-preview .calendar-controls .form-select,
+        body.mobile-preview .calendar-controls .btn-group {
+            width: 100% !important;
+        }
+
+        body.mobile-preview .booking-filters {
+            grid-template-columns: 1fr;
+        }
+
+        body.mobile-preview .timeline-pane {
+            padding: 0.85rem;
+        }
+
+        body.mobile-preview .timeline-events {
+            max-height: none;
+        }
+
+        body.mobile-preview .calendar-grid.is-week-view .calendar-day,
+        body.mobile-preview .calendar-day {
+            min-height: 0;
+        }
+
+        body.mobile-preview .calendar-day {
+            padding: 0.5rem;
+        }
+
+        body.mobile-preview .d-flex.gap-2.mt-2 {
+            flex-direction: column;
+        }
+
+        body.mobile-preview .toast-container {
+            left: 0;
+            right: 0;
+            top: 0;
+            padding: 0.75rem !important;
+        }
+
+        body.mobile-preview .toast-container .toast {
+            width: 100%;
+        }
+
+        body.mobile-preview .modal-dialog {
+            margin: 0;
+        }
+
+        body.mobile-preview .modal-content {
+            min-height: 100vh;
+            border-radius: 0;
+        }
+
+        body.mobile-preview h1 {
+            font-size: 1.5rem;
+        }
+
+        body.mobile-preview .booking-shell,
+        body.mobile-preview .card {
+            border-radius: 10px;
+        }
+
+        body.mobile-preview .calendar-legend {
+            gap: 0.35rem 0.5rem;
+        }
+
+        body.mobile-preview .calendar-legend-item,
+        body.mobile-preview .timeline-help,
+        body.mobile-preview .timeline-summary-chip {
+            font-size: 0.75rem;
+        }
+
+        body.mobile-preview #bookingsCalendarGrid {
+            grid-template-columns: 1fr;
+        }
+
+        body.mobile-preview #calendarWeekdays {
+            display: none;
+        }
+
+        body.mobile-preview .table-responsive {
+            font-size: 0.88rem;
+        }
+
+        body.mobile-preview .top-scrollbar {
+            display: block;
         }
     </style>
 </head>
@@ -394,32 +714,37 @@
             <li class="nav-item" role="presentation">
                 <button class="nav-link active" id="dashboard-tab-btn" data-bs-toggle="pill" data-bs-target="#dashboard-tab" type="button" role="tab" aria-controls="dashboard-tab" aria-selected="true" title="Dashboard">
                     <i class="bi bi-house-door"></i>
+                    <span class="sidebar-label">Home</span>
                 </button>
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="calendar-tab-btn" data-bs-toggle="pill" data-bs-target="#calendar-tab" type="button" role="tab" aria-controls="calendar-tab" aria-selected="false" title="Calendar">
                     <i class="bi bi-calendar3"></i>
+                    <span class="sidebar-label">Calendar</span>
                 </button>
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="reserve-tab-btn" data-bs-toggle="pill" data-bs-target="#reserve-tab" type="button" role="tab" aria-controls="reserve-tab" aria-selected="false" title="Reserve Room">
                     <i class="bi bi-plus-square"></i>
+                    <span class="sidebar-label">Reserve</span>
                 </button>
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="faq-tab-btn" data-bs-toggle="pill" data-bs-target="#faq-tab" type="button" role="tab" aria-controls="faq-tab" aria-selected="false" title="FAQ">
                     <i class="bi bi-question-circle"></i>
+                    <span class="sidebar-label">FAQ</span>
                 </button>
             </li>
             <li class="nav-item d-none" role="presentation" id="admin-tab-item">
                 <button class="nav-link" id="admin-tab-btn" data-bs-toggle="pill" data-bs-target="#admin-tab" type="button" role="tab" aria-controls="admin-tab" aria-selected="false" title="Admin">
                     <i class="bi bi-shield-lock"></i>
+                    <span class="sidebar-label">Admin</span>
                 </button>
             </li>
         </ul>
     </aside>
 
-    <main class="flex-grow-1 p-4">
+    <main class="app-main flex-grow-1 p-4">
         <div class="tab-content" id="sidebarTabsContent">
             <section class="tab-pane fade show active" id="dashboard-tab" role="tabpanel" aria-labelledby="dashboard-tab-btn" tabindex="0">
                 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
@@ -427,7 +752,10 @@
                         <h1 class="mb-1">Welcome, <span id="welcomeUserName">there</span>!</h1>
                         <div class="text-muted">Role: <span id="welcomeUserRole">student</span></div>
                     </div>
-                    <button id="logoutBtn" class="btn btn-outline-secondary btn-sm" type="button">Log Out</button>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button id="mobileViewToggleBtn" class="btn btn-outline-primary btn-sm" type="button">Mobile View: Off</button>
+                        <button id="logoutBtn" class="btn btn-outline-secondary btn-sm" type="button">Log Out</button>
+                    </div>
                 </div>
                 <div class="alert alert-info py-2 mb-4" role="alert">
                     Tips: 1) Use Calendar -> Timeline View to find a day. 2) Click a booking to reuse time or click Free day to prefill reservation. 3) Finalize in Reserve Room tab.
@@ -477,7 +805,8 @@
                             </select>
                         </div>
 
-                        <div class="table-responsive">
+                        <div id="bookingListTopScrollbar" class="top-scrollbar" aria-hidden="true"><div class="top-scrollbar-inner"></div></div>
+                        <div id="bookingListScrollHost" class="table-responsive">
                             <table class="booking-table">
                                 <thead>
                                 <tr>
@@ -662,7 +991,8 @@
                                 <button id="adminRoomSubmitBtn" class="btn btn-primary" type="submit">Create Room</button>
                             </div>
                         </form>
-                        <div class="table-responsive mt-3">
+                        <div id="adminRoomsTopScrollbar" class="top-scrollbar mt-3" aria-hidden="true"><div class="top-scrollbar-inner"></div></div>
+                        <div id="adminRoomsScrollHost" class="table-responsive mt-3">
                             <table class="table table-sm align-middle mb-0">
                                 <thead>
                                 <tr>
@@ -715,7 +1045,8 @@
                                 <button id="adminReservationRefreshBtn" class="btn btn-outline-secondary btn-sm" type="button">Refresh</button>
                             </div>
                         </div>
-                        <div class="table-responsive">
+                        <div id="adminReservationsTopScrollbar" class="top-scrollbar" aria-hidden="true"><div class="top-scrollbar-inner"></div></div>
+                        <div id="adminReservationsScrollHost" class="table-responsive">
                             <table class="table table-sm align-middle mb-0">
                                 <thead>
                                 <tr>
@@ -794,7 +1125,7 @@
 
 <!-- -------------------- Scheduler Modal -------------------- -->
 <div class="modal fade" id="schedulerModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="schedulerTitle">Choose reservation date</h5>

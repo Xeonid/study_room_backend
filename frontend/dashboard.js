@@ -60,11 +60,32 @@ function renderWelcomeUserRole() {
     host.textContent = getStoredUserRole() || "student";
 }
 
+function isMobilePreviewEnabled() {
+    return localStorage.getItem("mobile_view_preview") === "true";
+}
+
+function renderMobileViewToggle() {
+    const btn = document.getElementById("mobileViewToggleBtn");
+    if (!btn) return;
+    const enabled = isMobilePreviewEnabled();
+    document.body.classList.toggle("mobile-preview", enabled);
+    btn.textContent = `Mobile View: ${enabled ? "On" : "Off"}`;
+    btn.className = enabled ? "btn btn-primary btn-sm" : "btn btn-outline-primary btn-sm";
+    window.setTimeout(refreshSyncedHorizontalScrollbars, 0);
+}
+
+function toggleMobileViewPreview() {
+    const nextValue = !isMobilePreviewEnabled();
+    localStorage.setItem("mobile_view_preview", String(nextValue));
+    renderMobileViewToggle();
+}
+
 function logout() {
     localStorage.removeItem("token");
     localStorage.removeItem("user_email");
     localStorage.removeItem("user_name");
     localStorage.removeItem("user_role");
+    localStorage.removeItem("mobile_view_preview");
     location.href = "index.html";
 }
 
@@ -463,6 +484,63 @@ function csvEscape(value) {
     return text;
 }
 
+function isSmallScreenLayoutActive() {
+    return window.innerWidth <= 768 || document.body.classList.contains("mobile-preview");
+}
+
+function syncTopScrollbar(topScrollbarID, scrollHostID) {
+    const topScrollbar = document.getElementById(topScrollbarID);
+    const scrollHost = document.getElementById(scrollHostID);
+    if (!topScrollbar || !scrollHost) return;
+
+    const inner = topScrollbar.querySelector(".top-scrollbar-inner");
+    if (!inner) return;
+
+    const target = scrollHost.querySelector("table");
+    const targetWidth = target ? target.scrollWidth : scrollHost.scrollWidth;
+    inner.style.width = `${targetWidth}px`;
+
+    const shouldShow = isSmallScreenLayoutActive() && targetWidth > scrollHost.clientWidth + 4;
+    topScrollbar.style.display = shouldShow ? "block" : "none";
+}
+
+function bindSyncedHorizontalScroll(topScrollbarID, scrollHostID) {
+    const topScrollbar = document.getElementById(topScrollbarID);
+    const scrollHost = document.getElementById(scrollHostID);
+    if (!topScrollbar || !scrollHost || topScrollbar.dataset.syncBound === "true") return;
+
+    let syncingTop = false;
+    let syncingBottom = false;
+
+    topScrollbar.addEventListener("scroll", () => {
+        if (syncingBottom) {
+            syncingBottom = false;
+            return;
+        }
+        syncingTop = true;
+        scrollHost.scrollLeft = topScrollbar.scrollLeft;
+    });
+
+    scrollHost.addEventListener("scroll", () => {
+        if (syncingTop) {
+            syncingTop = false;
+            return;
+        }
+        syncingBottom = true;
+        topScrollbar.scrollLeft = scrollHost.scrollLeft;
+    });
+
+    topScrollbar.dataset.syncBound = "true";
+}
+
+function refreshSyncedHorizontalScrollbars() {
+    [
+        ["bookingListTopScrollbar", "bookingListScrollHost"],
+        ["adminRoomsTopScrollbar", "adminRoomsScrollHost"],
+        ["adminReservationsTopScrollbar", "adminReservationsScrollHost"]
+    ].forEach(([topID, hostID]) => syncTopScrollbar(topID, hostID));
+}
+
 function isReservationActive(event) {
     const normalized = normalizeStatus(event.status);
     if (normalized.includes("cancel")) return false;
@@ -641,6 +719,7 @@ function renderBookingListing() {
 
     if (filtered.length === 0) {
         rowsHost.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">No bookings found for current filters.</td></tr>`;
+        refreshSyncedHorizontalScrollbars();
         return;
     }
 
@@ -674,6 +753,7 @@ function renderBookingListing() {
             </td>
         </tr>
     `).join("");
+    refreshSyncedHorizontalScrollbars();
 }
 
 function getDayEventsMap() {
@@ -1321,6 +1401,7 @@ function renderAdminRoomPanel() {
     const rooms = getFilteredAdminRooms();
     if (rooms.length === 0) {
         rowsHost.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-3">No rooms loaded.</td></tr>`;
+        refreshSyncedHorizontalScrollbars();
         return;
     }
 
@@ -1367,6 +1448,7 @@ function renderAdminRoomPanel() {
         </tr>
     `;
     }).join("");
+    refreshSyncedHorizontalScrollbars();
 }
 
 function fillAdminReservationRoomFilter() {
@@ -1461,6 +1543,7 @@ function renderAdminReservations() {
 
     if (filtered.length === 0) {
         rowsHost.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-3">No reservations match the current filters.</td></tr>`;
+        refreshSyncedHorizontalScrollbars();
         return;
     }
 
@@ -1482,6 +1565,7 @@ function renderAdminReservations() {
             </td>
         </tr>
     `).join("");
+    refreshSyncedHorizontalScrollbars();
 }
 
 async function fetchAdminReservations() {
@@ -2071,8 +2155,13 @@ async function initDashboard() {
         return;
     }
 
+    renderMobileViewToggle();
     renderWelcomeUserName();
     renderWelcomeUserRole();
+    bindSyncedHorizontalScroll("bookingListTopScrollbar", "bookingListScrollHost");
+    bindSyncedHorizontalScroll("adminRoomsTopScrollbar", "adminRoomsScrollHost");
+    bindSyncedHorizontalScroll("adminReservationsTopScrollbar", "adminReservationsScrollHost");
+    window.addEventListener("resize", refreshSyncedHorizontalScrollbars);
     initBookingsCalendar();
     initSchedulerModal();
     await fetchAllRooms();
@@ -2215,8 +2304,12 @@ async function initDashboard() {
         });
     }
     const logoutBtn = document.getElementById("logoutBtn");
+    const mobileViewToggleBtn = document.getElementById("mobileViewToggleBtn");
     if (logoutBtn) {
         logoutBtn.addEventListener("click", logout);
+    }
+    if (mobileViewToggleBtn) {
+        mobileViewToggleBtn.addEventListener("click", toggleMobileViewPreview);
     }
     updateAdminRoomFormMode();
     renderAdminRoomPanel();
