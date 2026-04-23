@@ -13,9 +13,14 @@
         }
 
         .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
             width: 88px;
             border-right: 1px solid #e9ecef;
             background: #f8f9fa;
+            z-index: 1020;
         }
 
         .sidebar .nav-link {
@@ -37,6 +42,10 @@
 
         .sidebar-label {
             display: none;
+        }
+
+        .app-main {
+            margin-left: 88px;
         }
 
         .calendar-controls {
@@ -475,6 +484,7 @@
 
             .sidebar {
                 position: fixed;
+                top: auto;
                 left: 0;
                 right: 0;
                 bottom: 0;
@@ -515,6 +525,7 @@
             }
 
             .app-main {
+                margin-left: 0;
                 padding: 1rem 0.85rem !important;
             }
 
@@ -636,6 +647,7 @@
 
         body.mobile-preview .sidebar {
             position: fixed;
+            top: auto;
             left: 0;
             right: 0;
             bottom: 0;
@@ -676,6 +688,7 @@
         }
 
         body.mobile-preview .app-main {
+            margin-left: 0;
             padding: 1rem 0.85rem !important;
         }
 
