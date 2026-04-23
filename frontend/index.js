@@ -46,6 +46,7 @@ loginForm.addEventListener("submit", async (event) => {
         const data = await res.json();
         localStorage.setItem("token", data.token);
         localStorage.setItem("user_email", (data.email || email).trim());
+        localStorage.setItem("user_role", String(data.role || "student").trim().toLowerCase());
 
         if ((data.name || "").trim()) {
             localStorage.setItem("user_name", data.name.trim());
@@ -68,13 +69,12 @@ registerForm.addEventListener("submit", async (event) => {
     const name = document.getElementById("register-name").value.trim();
     const email = document.getElementById("register-email").value.trim();
     const password = document.getElementById("register-password").value.trim();
-    const role = document.getElementById("register-role").value;
 
     toggleAlert(registerError, "");
     toggleAlert(registerSuccess, "");
 
-    if (!name || !email || !password || !role) {
-        toggleAlert(registerError, "Name, email, password, and role are required.");
+    if (!name || !email || !password) {
+        toggleAlert(registerError, "Name, email, and password are required.");
         return;
     }
 
@@ -82,7 +82,7 @@ registerForm.addEventListener("submit", async (event) => {
         const res = await fetch("/api/register", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name, email, password, role })
+            body: JSON.stringify({ name, email, password })
         });
 
         if (!res.ok) {

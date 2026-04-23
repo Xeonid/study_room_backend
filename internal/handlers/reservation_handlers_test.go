@@ -12,6 +12,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
+	"study_room_backend/internal/auth"
 	"study_room_backend/internal/middleware"
 )
 
@@ -328,5 +329,45 @@ func TestDeactivateRoomCancelsFutureReservationsWhenRequested(t *testing.T) {
 	}
 	if count != 0 {
 		t.Fatalf("expected future reservation to be deleted, got count %d", count)
+	}
+}
+
+func TestProfileCanBeLoadedAndUpdated(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	hashedPassword, err := auth.HashPassword("secret123")
+	if err != nil {
+		t.Fatalf("hash password: %v", err)
+	}
+	if _, err := db.Exec(`UPDATE users SET password = ? WHERE id = 1`, hashedPassword); err != nil {
+		t.Fatalf("seed password: %v", err)
+	}
+
+	authHandler := &AuthHandler{DB: db}
+
+	getReq := requestWithUser(http.MethodGet, "/api/profile", "")
+	getRec := httptest.NewRecorder()
+	authHandler.GetProfile(getRec, getReq)
+	if getRec.Code != http.StatusOK {
+		t.Fatalf("expected 200 on get profile, got %d with body %s", getRec.Code, getRec.Body.String())
+	}
+
+	updateReq := requestWithUser(http.MethodPut, "/api/profile", `{"name":"Updated User","email":"updated@example.com","current_password":"secret123","new_password":"newpass123"}`)
+	updateRec := httptest.NewRecorder()
+	authHandler.UpdateProfile(updateRec, updateReq)
+	if updateRec.Code != http.StatusOK {
+		t.Fatalf("expected 200 on update profile, got %d with body %s", updateRec.Code, updateRec.Body.String())
+	}
+
+	var name, email, passwordHash string
+	if err := db.QueryRow(`SELECT name, email, password FROM users WHERE id = 1`).Scan(&name, &email, &passwordHash); err != nil {
+		t.Fatalf("load updated user: %v", err)
+	}
+	if name != "Updated User" || email != "updated@example.com" {
+		t.Fatalf("expected updated profile values, got %q / %q", name, email)
+	}
+	if !auth.CheckPasswordHash("newpass123", passwordHash) {
+		t.Fatalf("expected password to be updated")
 	}
 }
