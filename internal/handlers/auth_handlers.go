@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"study_room_backend/internal/auth"
+	"study_room_backend/internal/middleware"
 	"study_room_backend/internal/utils"
 )
 
@@ -64,6 +65,19 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
+type profileResponse struct {
+	Name  string `json:"name"`
+	Email string `json:"email"`
+	Role  string `json:"role"`
+}
+
+type updateProfileRequest struct {
+	Name            string `json:"name"`
+	Email           string `json:"email"`
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+}
+
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var body LoginRequest
 	if !utils.DecodeJSONBody(w, r, &body) {
@@ -107,5 +121,116 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		"name":  name,
 		"email": email,
 		"role":  role,
+	})
+}
+
+func (h *AuthHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
+	userID, _ := r.Context().Value(middleware.UserIDKey).(int)
+	if userID <= 0 {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var profile profileResponse
+	err := h.DB.QueryRow(`SELECT name, email, role FROM users WHERE id = ?`, userID).
+		Scan(&profile.Name, &profile.Email, &profile.Role)
+	if err == sql.ErrNoRows {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		http.Error(w, "Failed to load profile", http.StatusInternalServerError)
+		return
+	}
+
+	utils.JSON(w, http.StatusOK, profile)
+}
+
+func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
+	userID, _ := r.Context().Value(middleware.UserIDKey).(int)
+	if userID <= 0 {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var body updateProfileRequest
+	if !utils.DecodeJSONBody(w, r, &body) {
+		return
+	}
+
+	body.Name = strings.TrimSpace(body.Name)
+	body.Email = strings.TrimSpace(body.Email)
+	body.CurrentPassword = strings.TrimSpace(body.CurrentPassword)
+	body.NewPassword = strings.TrimSpace(body.NewPassword)
+	if body.Name == "" || body.Email == "" {
+		http.Error(w, "Name and email are required", http.StatusBadRequest)
+		return
+	}
+	if body.NewPassword != "" && body.CurrentPassword == "" {
+		http.Error(w, "Current password is required to set a new password", http.StatusBadRequest)
+		return
+	}
+
+	var existingName, existingEmail, hashedPassword, role string
+	err := h.DB.QueryRow(`SELECT name, email, password, role FROM users WHERE id = ?`, userID).
+		Scan(&existingName, &existingEmail, &hashedPassword, &role)
+	if err == sql.ErrNoRows {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		http.Error(w, "Failed to load profile", http.StatusInternalServerError)
+		return
+	}
+
+	emailChanged := !strings.EqualFold(existingEmail, body.Email)
+	passwordChanged := body.NewPassword != ""
+	if emailChanged || passwordChanged {
+		if body.CurrentPassword == "" || !auth.CheckPasswordHash(body.CurrentPassword, hashedPassword) {
+			http.Error(w, "Current password is incorrect", http.StatusUnauthorized)
+			return
+		}
+	}
+
+	if emailChanged {
+		var exists int
+		err = h.DB.QueryRow(`SELECT 1 FROM users WHERE email = ? AND id != ?`, body.Email, userID).Scan(&exists)
+		if err == nil {
+			http.Error(w, "Email already registered", http.StatusConflict)
+			return
+		}
+		if err != nil && err != sql.ErrNoRows {
+			http.Error(w, "Failed to validate email", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	nextPasswordHash := hashedPassword
+	if passwordChanged {
+		if len(body.NewPassword) < 4 {
+			http.Error(w, "New password must be at least 4 characters", http.StatusBadRequest)
+			return
+		}
+		nextPasswordHash, err = auth.HashPassword(body.NewPassword)
+		if err != nil {
+			http.Error(w, "Failed to hash password", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	_, err = h.DB.Exec(`
+		UPDATE users
+		SET name = ?, email = ?, password = ?
+		WHERE id = ?
+	`, body.Name, body.Email, nextPasswordHash, userID)
+	if err != nil {
+		http.Error(w, "Failed to update profile", http.StatusInternalServerError)
+		return
+	}
+
+	utils.JSON(w, http.StatusOK, profileResponse{
+		Name:  body.Name,
+		Email: body.Email,
+		Role:  role,
 	})
 }

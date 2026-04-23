@@ -25,6 +25,16 @@ func main() {
 	// Auth
 	mux.HandleFunc("/api/register", authHandler.Register)
 	mux.HandleFunc("/api/login", authHandler.Login)
+	mux.Handle("/api/profile", middleware.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			authHandler.GetProfile(w, r)
+		case http.MethodPut:
+			authHandler.UpdateProfile(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})))
 
 	// Rooms
 	mux.Handle("/api/rooms", middleware.AuthMiddleware(http.HandlerFunc(roomHandler.GetRooms)))

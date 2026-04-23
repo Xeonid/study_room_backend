@@ -80,6 +80,99 @@ function toggleMobileViewPreview() {
     renderMobileViewToggle();
 }
 
+function openCalendarTab() {
+    const calendarTabBtn = document.getElementById("calendar-tab-btn");
+    if (!calendarTabBtn) return;
+
+    if (typeof bootstrap !== "undefined" && typeof bootstrap.Tab === "function") {
+        bootstrap.Tab.getOrCreateInstance(calendarTabBtn).show();
+        return;
+    }
+
+    calendarTabBtn.click();
+}
+
+function fillProfileForm(profile) {
+    profileSnapshot = {
+        name: String(profile?.name || ""),
+        email: String(profile?.email || ""),
+        role: String(profile?.role || "")
+    };
+
+    const nameInput = document.getElementById("profileName");
+    const emailInput = document.getElementById("profileEmail");
+    const roleInput = document.getElementById("profileRole");
+    const currentPasswordInput = document.getElementById("profileCurrentPassword");
+    const newPasswordInput = document.getElementById("profileNewPassword");
+    if (nameInput) nameInput.value = profileSnapshot.name;
+    if (emailInput) emailInput.value = profileSnapshot.email;
+    if (roleInput) roleInput.value = profileSnapshot.role;
+    if (currentPasswordInput) currentPasswordInput.value = "";
+    if (newPasswordInput) newPasswordInput.value = "";
+}
+
+async function fetchProfile() {
+    const token = getToken();
+    if (!token) return;
+
+    const res = await fetch("/api/profile", {
+        headers: { "Authorization": "Bearer " + token }
+    });
+    if (!res.ok) {
+        const err = await res.text();
+        showToast(err || "Failed to load profile.", "danger", "profileActionToast", "profileActionToastBody");
+        return;
+    }
+
+    const profile = await writeJSON(res);
+    fillProfileForm(profile || {});
+}
+
+async function saveProfile(event) {
+    event.preventDefault();
+    const token = getToken();
+    if (!token) return;
+
+    const name = document.getElementById("profileName")?.value.trim() || "";
+    const email = document.getElementById("profileEmail")?.value.trim() || "";
+    const currentPassword = document.getElementById("profileCurrentPassword")?.value.trim() || "";
+    const newPassword = document.getElementById("profileNewPassword")?.value.trim() || "";
+    if (!name || !email) {
+        showToast("Name and email are required.", "danger", "profileActionToast", "profileActionToastBody");
+        return;
+    }
+
+    const res = await fetch("/api/profile", {
+        method: "PUT",
+        headers: {
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            name,
+            email,
+            current_password: currentPassword,
+            new_password: newPassword
+        })
+    });
+    if (!res.ok) {
+        const err = await res.text();
+        showToast(err || "Failed to update profile.", "danger", "profileActionToast", "profileActionToastBody");
+        return;
+    }
+
+    const profile = await writeJSON(res);
+    fillProfileForm(profile || { name, email, role: profileSnapshot.role });
+    localStorage.setItem("user_name", String(profile?.name || name));
+    localStorage.setItem("user_email", String(profile?.email || email));
+    renderWelcomeUserName();
+    showToast("Profile updated.", "success", "profileActionToast", "profileActionToastBody");
+}
+
+function resetProfileForm() {
+    fillProfileForm(profileSnapshot);
+}
+
 function logout() {
     localStorage.removeItem("token");
     localStorage.removeItem("user_email");
@@ -460,6 +553,11 @@ const calculatorState = {
     displayValue: "0",
     justEvaluated: false,
     previousExpression: ""
+};
+let profileSnapshot = {
+    name: "",
+    email: "",
+    role: ""
 };
 
 function toLocalDayKey(date) {
@@ -2286,6 +2384,9 @@ async function createReservation(event) {
     resetReservationFormMode();
     await fetchReservations();
     await refreshAvailableRooms();
+    if (!isEditing) {
+        window.setTimeout(openCalendarTab, 900);
+    }
 }
 
 // -------------------- Delete Reservation --------------------
@@ -2352,6 +2453,7 @@ async function initDashboard() {
     await refreshAvailableRooms();
     await fetchReservations();
     await fetchAdminReservations();
+    await fetchProfile();
 
     document.getElementById("reservationForm").addEventListener("submit", createReservation);
     document.getElementById("attendeeCount").addEventListener("input", () => {
@@ -2381,6 +2483,8 @@ async function initDashboard() {
     const adminRoomSearchInput = document.getElementById("adminRoomSearchInput");
     const adminReservationRows = document.getElementById("adminReservationRows");
     const calculatorTab = document.getElementById("calculator-tab");
+    const profileForm = document.getElementById("profileForm");
+    const profileResetBtn = document.getElementById("profileResetBtn");
     const adminRoomsViewBtn = document.getElementById("adminRoomsViewBtn");
     const adminReservationsViewBtn = document.getElementById("adminReservationsViewBtn");
     if (adminRoomForm) {
@@ -2398,6 +2502,12 @@ async function initDashboard() {
             if (!button) return;
             handleCalculatorAction(button.dataset.calcAction, button.dataset.calcValue || "");
         });
+    }
+    if (profileForm) {
+        profileForm.addEventListener("submit", saveProfile);
+    }
+    if (profileResetBtn) {
+        profileResetBtn.addEventListener("click", resetProfileForm);
     }
     if (adminRoomRows) {
         adminRoomRows.addEventListener("click", event => {
