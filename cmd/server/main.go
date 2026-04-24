@@ -44,6 +44,7 @@ func main() {
 	mux.Handle("/api/rooms/delete", middleware.AuthMiddleware(middleware.RequireAdmin(http.HandlerFunc(roomHandler.DeleteRoom))))
 
 	// Reservations — single path, switch on method
+	mux.Handle("/api/reservations/limits", middleware.AuthMiddleware(http.HandlerFunc(resHandler.GetReservationLimits)))
 	mux.Handle("/api/reservations", middleware.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:

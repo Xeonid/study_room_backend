@@ -192,6 +192,23 @@
             border-color: #b6c2ce;
         }
 
+        .timeline-reservable {
+            border: 1px dashed #bfd7c3;
+            border-radius: 8px;
+            padding: 0.55rem;
+            font-size: 0.76rem;
+            color: #3b6b41;
+            text-align: center;
+            background: #f4fbf4;
+            cursor: pointer;
+            transition: background-color 0.15s ease, border-color 0.15s ease;
+        }
+
+        .timeline-reservable:hover {
+            background: #eaf7ea;
+            border-color: #8fbd96;
+        }
+
         .timeline-event.status-active { border-left-color: #198754; }
         .timeline-event.status-confirmed { border-left-color: #3b82f6; }
         .timeline-event.status-pending { border-left-color: #ffc107; }
@@ -462,6 +479,121 @@
             color: #344054;
         }
 
+        .usage-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .usage-stat-card {
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            border: 1px solid #e5e9ef;
+            border-radius: 14px;
+            padding: 0.9rem 1rem;
+        }
+
+        .usage-stat-label {
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #667085;
+            margin-bottom: 0.2rem;
+        }
+
+        .usage-stat-value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #1f2937;
+            line-height: 1.1;
+        }
+
+        .usage-stat-value.is-zero {
+            color: #b42318;
+        }
+
+        .usage-stat-value.is-positive {
+            color: #067647;
+        }
+
+        .usage-stat-meta {
+            font-size: 0.82rem;
+            color: #667085;
+            margin-top: 0.2rem;
+        }
+
+        .usage-stat-meta.is-zero {
+            color: #b42318;
+            font-weight: 700;
+        }
+
+        .usage-stat-meta.is-positive {
+            color: #067647;
+        }
+
+        #reservationLimitRules {
+            color: #b42318;
+            font-size: 1rem;
+            font-weight: 700;
+            line-height: 1.55;
+        }
+
+        #reservationLimitCurrent {
+            font-size: 1rem;
+            line-height: 1.65;
+        }
+
+        #reservationLimitCurrent .is-zero {
+            color: #b42318;
+            font-weight: 700;
+        }
+
+        #reservationLimitCurrent .is-positive {
+            color: #067647;
+            font-weight: 700;
+        }
+
+        #reservationLimitRules li + li {
+            margin-top: 0.25rem;
+        }
+
+        .reservation-section-title-rules {
+            color: #b42318;
+            font-size: 1rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+        }
+
+        #reserve-tab {
+            padding-top: 0;
+        }
+
+        #reserve-tab .card {
+            margin-top: 0;
+        }
+
+        #reserve-tab .card-body {
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+        }
+
+        #reservationForm {
+            gap: 0.65rem !important;
+        }
+
+        #reservationForm .form-label {
+            margin-bottom: 0.2rem !important;
+        }
+
+        #reservationForm .small {
+            line-height: 1.35;
+        }
+
+        #reservationForm .row.g-3,
+        #reservationForm .row.g-2 {
+            --bs-gutter-y: 0.55rem;
+        }
+
         @media (max-width: 991px) {
             .app-main {
                 padding: 1rem !important;
@@ -469,6 +601,10 @@
 
             .booking-filters {
                 grid-template-columns: 1fr 1fr;
+            }
+
+            .usage-stats-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
             }
 
             .calendar-controls {
@@ -543,6 +679,10 @@
             }
 
             .booking-filters {
+                grid-template-columns: 1fr;
+            }
+
+            .usage-stats-grid {
                 grid-template-columns: 1fr;
             }
 
@@ -850,7 +990,14 @@
                     </div>
                 </div>
                 <div class="alert alert-info py-2 mb-4" role="alert">
-                    Tips: 1) Use Calendar -> Timeline View to find a day. 2) Click a booking to reuse time or click Free day to prefill reservation. 3) Finalize in Reserve Room tab.
+                    Tips: 1) Use Calendar -> Timeline View to find a day. 2) Click a reservation to reuse time or click Free day to prefill reservation. 3) Finalize in Reserve Room tab.
+                </div>
+                <div id="dashboardUsageStats" class="usage-stats-grid">
+                    <div class="usage-stat-card">
+                        <div class="usage-stat-label">Usage</div>
+                        <div class="usage-stat-value">Loading...</div>
+                        <div class="usage-stat-meta">Fetching current reservation stats.</div>
+                    </div>
                 </div>
 
                 <div class="booking-shell mt-4">
@@ -858,7 +1005,7 @@
                         <ul class="nav booking-view-tabs">
                             <li class="nav-item">
                                 <span class="nav-link active">
-                                    <i class="bi bi-list-ul me-1"></i>Booking Listing
+                                    <i class="bi bi-list-ul me-1"></i>Reservation Listing
                                 </span>
                             </li>
                         </ul>
@@ -889,7 +1036,7 @@
 
                     <div class="booking-list-wrap">
                         <div class="booking-list-head">
-                            <div class="booking-count" id="bookingListingCount">0 bookings</div>
+                            <div class="booking-count" id="bookingListingCount">0 reservations</div>
                             <select id="listingSortSelect" class="form-select form-select-sm" style="width: 185px;">
                                 <option value="start_desc" selected>Sort by: Latest</option>
                                 <option value="start_asc">Sort by: Earliest</option>
@@ -918,7 +1065,7 @@
             </section>
 
             <section class="tab-pane fade" id="calendar-tab" role="tabpanel" aria-labelledby="calendar-tab-btn" tabindex="0">
-                <h1 class="mb-4">Booking Calendar</h1>
+                <h1 class="mb-4">Reservation Calendar</h1>
                 <div class="booking-shell">
                     <div class="booking-topbar">
                         <ul class="nav booking-view-tabs">
@@ -966,14 +1113,12 @@
                                 </div>
                             </div>
 
-                            <div class="timeline-help">Tip: Click a booking to reuse its time, or click "Free day" to start a reservation for that date.</div>
+                            <div class="timeline-help">Tip: Click a reservation to reuse its time, or click "Free day" to start a reservation for that date.</div>
                             <div class="timeline-summary" id="timelineSummary"></div>
 
                             <div class="calendar-legend">
                                 <span class="calendar-legend-item"><span class="legend-dot legend-active"></span>Active now</span>
                                 <span class="calendar-legend-item"><span class="legend-dot legend-upcoming"></span>Upcoming</span>
-                                <span class="calendar-legend-item"><span class="legend-dot legend-pending"></span>Pending</span>
-                                <span class="calendar-legend-item"><span class="legend-dot legend-cancelled"></span>Cancelled</span>
                                 <span class="calendar-legend-item"><span class="legend-dot legend-completed"></span>Completed</span>
                             </div>
 
@@ -984,13 +1129,39 @@
             </section>
 
             <section class="tab-pane fade" id="reserve-tab" role="tabpanel" aria-labelledby="reserve-tab-btn" tabindex="0">
-                <h1 class="mb-4">Reserve Room</h1>
+                <h1 class="mb-3">Reserve Room</h1>
                 <div class="card">
                     <div class="card-body">
-                        <h3 class="h5 mb-3">Reserve Room</h3>
                         <form id="reservationForm" class="w-100 d-flex flex-column gap-2">
                             <div id="reservationEditNotice" class="alert alert-info py-2 px-3 d-none" role="alert">
                                 Editing an existing reservation. Capacity and duration will be rechecked on save.
+                            </div>
+                            <div class="border rounded p-3">
+                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                                    <label class="form-label fw-semibold mb-0">Reservation limits</label>
+                                    <span class="small text-muted">Shown before and after this reservation.</span>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-12 col-lg-4">
+                                        <div class="reservation-section-title-rules mb-1">RULES</div>
+                                        <ul id="reservationLimitRules" class="small mb-0 ps-3">
+                                            <li class="text-muted">Loading limits...</li>
+                                        </ul>
+                                    </div>
+                                    <div class="col-12 col-lg-4">
+                                        <div class="small text-uppercase text-muted mb-1">CURRENT USAGE</div>
+                                        <div id="reservationLimitCurrent" class="small text-muted">Loading current usage...</div>
+                                    </div>
+                                    <div class="col-12 col-lg-4">
+                                        <div class="small text-uppercase text-muted mb-1">Projected after save</div>
+                                        <div id="reservationLimitProjected" class="small text-muted">Choose a date and time to preview the effect of this reservation.</div>
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <div id="reservationLimitStatus" class="alert alert-secondary py-2 px-3 mb-0" role="alert">
+                                        Choose a valid date and time to preview reservation limits.
+                                    </div>
+                                </div>
                             </div>
                             <div>
                                 <label for="attendeeCount" class="form-label mb-1">Group size</label>
@@ -1262,7 +1433,7 @@
                         </h2>
                         <div id="faqTwo" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
                             <div class="accordion-body">
-                                Yes. Open the booking actions menu, choose Edit booking, then update the group size, room, or time. The system rechecks capacity before saving.
+                                Yes. Open the reservation actions menu, choose Edit reservation, then update the group size, room, or time. The system rechecks capacity before saving.
                             </div>
                         </div>
                     </div>

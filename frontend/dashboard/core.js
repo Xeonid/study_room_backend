@@ -206,14 +206,33 @@ function showToast(message, variant = "dark", toastID = "actionToast", bodyID = 
     const resolvedVariant = normalizeToastVariant(variant);
     const isInlineToast = toastID === "reservationActionToast";
     toastEl.className = isInlineToast
-        ? `toast align-items-center border-0 w-100 text-${resolvedVariant === "danger" ? "white" : "dark"}`
-        : `toast align-items-center text-bg-${resolvedVariant} border-0`;
+        ? `toast align-items-center border-0 w-100`
+        : `toast align-items-center border-0`;
     if (isInlineToast) {
-        toastEl.style.backgroundColor = resolvedVariant === "success" ? "#d1e7dd" : "#dc3545";
+        toastEl.style.backgroundColor = resolvedVariant === "success" ? "#16a34a" : "#dc2626";
+        toastEl.style.color = "#ffffff";
     } else {
-        toastEl.style.backgroundColor = "";
+        toastEl.style.backgroundColor = resolvedVariant === "success"
+            ? "#15803d"
+            : resolvedVariant === "danger"
+                ? "#b91c1c"
+                : "#1f2937";
+        toastEl.style.color = "#ffffff";
     }
+    toastEl.style.boxShadow = "0 18px 40px rgba(15, 23, 42, 0.22)";
+    toastEl.style.borderRadius = "16px";
+    toastEl.style.padding = "0.15rem";
     bodyEl.textContent = message;
+    bodyEl.style.fontSize = isInlineToast ? "1.05rem" : "1.1rem";
+    bodyEl.style.fontWeight = "800";
+    bodyEl.style.padding = "0.95rem 1rem";
+    toastEl.setAttribute("tabindex", "-1");
+    toastEl.scrollIntoView({ behavior: "smooth", block: "center" });
+    try {
+        toastEl.focus({ preventScroll: true });
+    } catch (err) {
+        toastEl.focus();
+    }
 
     if (typeof bootstrap !== "undefined" && typeof bootstrap.Toast === "function") {
         bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 2600 }).show();

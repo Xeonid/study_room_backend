@@ -17,6 +17,14 @@ function resetReservationFormMode() {
     updateReservationFormMode();
 }
 
+function clearReservationDraftSelection() {
+    schedulerState.selectedDate = null;
+    schedulerState.startDateTime = null;
+    schedulerState.endDateTime = null;
+    syncManualInputsFromState();
+    updateReservationSummary();
+}
+
 function beginReservationEdit(reservationID) {
     const reservation = reservationsCache.find(item => Number(item.id) === Number(reservationID));
     if (!reservation) {
@@ -100,6 +108,206 @@ function populateRoomSelect(rooms, attendeeCount = 0) {
     }
 }
 
+function renderReservationLimits(limits) {
+    const rulesHost = document.getElementById("reservationLimitRules");
+    const currentHost = document.getElementById("reservationLimitCurrent");
+    const projectedHost = document.getElementById("reservationLimitProjected");
+    const statusHost = document.getElementById("reservationLimitStatus");
+    if (!rulesHost || !currentHost || !projectedHost || !statusHost) return;
+
+    if (!limits || !limits.rules || !limits.current) {
+        rulesHost.innerHTML = `<li class="text-muted">Reservation limits unavailable.</li>`;
+        currentHost.innerHTML = `<div class="text-muted">Unable to load your current usage.</div>`;
+        projectedHost.innerHTML = `<div class="text-muted">Choose a date and time to preview the effect of a new reservation.</div>`;
+        statusHost.className = "alert alert-secondary py-2 px-3 mb-0";
+        statusHost.textContent = "Choose a valid date and time to preview reservation limits.";
+        return;
+    }
+
+    if (limits.rules.applies === false) {
+        rulesHost.innerHTML = `<li>Admin reservations are not subject to student reservation limits.</li>`;
+        currentHost.innerHTML = `<div>Admin role detected. Daily, weekly, and gap limits are not enforced.</div>`;
+        projectedHost.innerHTML = `<div>The selected reservation will be checked for room capacity only.</div>`;
+        statusHost.className = "alert alert-secondary py-2 px-3 mb-0";
+        statusHost.textContent = "Admin reservations bypass student reservation limits.";
+        return;
+    }
+
+    rulesHost.innerHTML = `
+        <li>Future reservations only</li>
+        <li>Reservations allowed up to ${escapeHTML(String(limits.rules.max_lead_time_days || 14))} days ahead</li>
+        <li>Hours allowed: ${escapeHTML(String(limits.rules.earliest_hour || "08:00"))} to ${escapeHTML(String(limits.rules.latest_hour || "20:00"))}</li>
+        <li>Maximum ${escapeHTML(String(limits.rules.max_reservations_per_day || 2))} reservations per day</li>
+        <li>Maximum ${escapeHTML(String(limits.rules.max_hours_per_week || 20))} hours per week</li>
+        <li>Maximum ${escapeHTML(String(limits.rules.max_upcoming_reservations || 5))} upcoming reservations at once</li>
+        <li>Only one reservation at a time per student across all rooms</li>
+        <li>Minimum ${escapeHTML(String(limits.rules.minimum_gap_minutes || 15))} minutes between reservations</li>
+        <li>No edits or cancellations after start time or within ${escapeHTML(String(limits.rules.change_cutoff_minutes || 15))} minutes of start</li>
+        <li>Confirmation required before saving</li>
+    `;
+
+    currentHost.innerHTML = `
+        <div><strong>Today:</strong> ${usageNumber(limits.current.reservations_today || 0)} used, ${usageNumber(limits.current.reservations_today_remaining || 0)} remaining</div>
+        <div><strong>This week:</strong> ${usageNumber(limits.current.hours_this_week || 0, "h")} used, ${usageNumber(limits.current.hours_this_week_remaining || 0, "h")} remaining</div>
+        <div><strong>Upcoming:</strong> ${usageNumber(limits.current.upcoming_reservations || 0)} held, ${usageNumber(limits.current.upcoming_reservations_remaining || 0)} remaining</div>
+    `;
+
+    if (!limits.proposed) {
+        projectedHost.innerHTML = `<div class="text-muted">Choose a date and time to preview the effect of this reservation.</div>`;
+        statusHost.className = "alert alert-secondary py-2 px-3 mb-0";
+        statusHost.textContent = "Choose a valid date and time to preview reservation limits.";
+        return;
+    }
+
+    const violations = Array.isArray(limits.proposed.violations) ? limits.proposed.violations : [];
+    projectedHost.innerHTML = `
+        <div><strong>Selected day after booking:</strong> ${escapeHTML(String(limits.proposed.reservations_on_selected_day_after || 0))}/${escapeHTML(String(limits.rules.max_reservations_per_day || 2))}</div>
+        <div><strong>Selected week after booking:</strong> ${escapeHTML(String(limits.proposed.hours_on_selected_week_after || 0))}h/${escapeHTML(String(limits.rules.max_hours_per_week || 20))}h</div>
+        <div><strong>Upcoming after booking:</strong> ${escapeHTML(String(limits.proposed.upcoming_reservations_after || 0))}/${escapeHTML(String(limits.rules.max_upcoming_reservations || 5))}</div>
+        <div><strong>Reservation duration:</strong> ${escapeHTML(String(limits.proposed.duration_hours || 0))}h</div>
+    `;
+
+    if (limits.proposed.can_reserve) {
+        statusHost.className = "alert alert-secondary py-2 px-3 mb-0";
+        statusHost.textContent = "Projected usage is shown below.";
+        return;
+    }
+
+    statusHost.className = "alert alert-danger py-2 px-3 mb-0";
+    statusHost.textContent = violations.length > 0
+        ? violations.join(" ")
+        : "This slot does not satisfy the reservation limits.";
+}
+
+function usageValueClass(value) {
+    const numericValue = Number(value);
+    if (Number.isFinite(numericValue)) {
+        return numericValue === 0 ? "is-zero" : "is-positive";
+    }
+    return "is-positive";
+}
+
+function usageMetaClass(value) {
+    const numericValue = Number(value);
+    if (Number.isFinite(numericValue)) {
+        return numericValue === 0 ? "is-zero" : "is-positive";
+    }
+    return "";
+}
+
+function usageNumber(value, suffix = "") {
+    return `<span class="${usageMetaClass(value)}">${escapeHTML(String(value))}${escapeHTML(suffix)}</span>`;
+}
+
+function renderDashboardUsageStats(limits) {
+    const host = document.getElementById("dashboardUsageStats");
+    if (!host) return;
+
+    if (!limits || !limits.rules || !limits.current) {
+        host.innerHTML = `
+            <div class="usage-stat-card">
+                <div class="usage-stat-label">Usage</div>
+                <div class="usage-stat-value">Unavailable</div>
+                <div class="usage-stat-meta">Current reservation stats could not be loaded.</div>
+            </div>
+        `;
+        return;
+    }
+
+    if (limits.rules.applies === false) {
+        host.innerHTML = `
+            <div class="usage-stat-card">
+                <div class="usage-stat-label">Role</div>
+                <div class="usage-stat-value">Admin</div>
+                <div class="usage-stat-meta">Student reservation limits do not apply.</div>
+            </div>
+            <div class="usage-stat-card">
+                <div class="usage-stat-label">Daily Limit</div>
+                <div class="usage-stat-value">Exempt</div>
+                <div class="usage-stat-meta">No reservation count cap for admins.</div>
+            </div>
+            <div class="usage-stat-card">
+                <div class="usage-stat-label">Weekly Hours</div>
+                <div class="usage-stat-value">Exempt</div>
+                <div class="usage-stat-meta">No weekly hour cap for admins.</div>
+            </div>
+            <div class="usage-stat-card">
+                <div class="usage-stat-label">Policy</div>
+                <div class="usage-stat-value">Capacity Only</div>
+                <div class="usage-stat-meta">Reservations still check room availability and capacity.</div>
+            </div>
+        `;
+        return;
+    }
+
+    host.innerHTML = `
+        <div class="usage-stat-card">
+            <div class="usage-stat-label">Reservations Today</div>
+            <div class="usage-stat-value ${usageValueClass(limits.current.reservations_today || 0)}">${escapeHTML(String(limits.current.reservations_today || 0))}</div>
+            <div class="usage-stat-meta ${usageMetaClass(limits.current.reservations_today_remaining || 0)}">${escapeHTML(String(limits.current.reservations_today_remaining || 0))} remaining today</div>
+        </div>
+        <div class="usage-stat-card">
+            <div class="usage-stat-label">Hours This Week</div>
+            <div class="usage-stat-value ${usageValueClass(limits.current.hours_this_week || 0)}">${escapeHTML(String(limits.current.hours_this_week || 0))}h</div>
+            <div class="usage-stat-meta ${usageMetaClass(limits.current.hours_this_week_remaining || 0)}">${escapeHTML(String(limits.current.hours_this_week_remaining || 0))}h remaining this week</div>
+        </div>
+        <div class="usage-stat-card">
+            <div class="usage-stat-label">Daily Limit</div>
+            <div class="usage-stat-value ${usageValueClass(limits.rules.max_reservations_per_day || 2)}">${escapeHTML(String(limits.rules.max_reservations_per_day || 2))}</div>
+            <div class="usage-stat-meta">Maximum reservations allowed per day</div>
+        </div>
+        <div class="usage-stat-card">
+            <div class="usage-stat-label">Upcoming Held</div>
+            <div class="usage-stat-value ${usageValueClass(limits.current.upcoming_reservations || 0)}">${escapeHTML(String(limits.current.upcoming_reservations || 0))}</div>
+            <div class="usage-stat-meta ${usageMetaClass(limits.current.upcoming_reservations_remaining || 0)}">${escapeHTML(String(limits.current.upcoming_reservations_remaining || 0))} of ${escapeHTML(String(limits.rules.max_upcoming_reservations || 5))} remaining</div>
+        </div>
+    `;
+}
+
+async function fetchReservationLimitsData() {
+    const token = getToken();
+    if (!token) return null;
+
+    const params = getReservationSearchParams();
+    const query = new URLSearchParams();
+    if (params?.startTime && params?.endTime) {
+        query.set("start_time", params.startTime.toISOString());
+        query.set("end_time", params.endTime.toISOString());
+    }
+    if (editingReservationID !== null) {
+        query.set("exclude_reservation_id", String(editingReservationID));
+    }
+
+    const url = query.toString() ? `/api/reservations/limits?${query.toString()}` : "/api/reservations/limits";
+    const res = await fetch(url, {
+        headers: { "Authorization": "Bearer " + token }
+    });
+    if (!res.ok) {
+        const err = await res.text();
+        throw new Error(err || "Failed to load reservation limits");
+    }
+
+    return await writeJSON(res);
+}
+
+async function refreshReservationLimits() {
+    try {
+        const limits = await fetchReservationLimitsData();
+        renderDashboardUsageStats(limits);
+        renderReservationLimits(limits);
+        return limits;
+    } catch (err) {
+        renderDashboardUsageStats(null);
+        renderReservationLimits(null);
+        const statusHost = document.getElementById("reservationLimitStatus");
+        if (statusHost) {
+            statusHost.className = "alert alert-danger py-2 px-3 mb-0";
+            statusHost.textContent = String(err.message || err);
+        }
+        return null;
+    }
+}
+
 async function fetchAllRooms() {
     const token = getToken();
     if (!token) return;
@@ -133,6 +341,7 @@ async function fetchAllRooms() {
 async function refreshAvailableRooms() {
     const token = getToken();
     if (!token) return;
+    refreshReservationLimits().catch(() => {});
 
     const params = getReservationSearchParams();
     if (!params) {
@@ -214,6 +423,7 @@ async function fetchReservations() {
         }
         renderBookingListing();
         renderReservationCalendar();
+        await refreshReservationLimits();
         return;
     }
 
@@ -239,6 +449,7 @@ async function fetchReservations() {
 
     renderBookingListing();
     renderReservationCalendar();
+    await refreshReservationLimits();
 }
 
 // -------------------- Create Reservation --------------------
@@ -270,6 +481,28 @@ async function createReservation(event) {
     }
 
     const isEditing = editingReservationID !== null;
+    const limits = await fetchReservationLimitsData().catch(() => null);
+    if (limits?.proposed?.can_reserve === false) {
+        const violations = Array.isArray(limits.proposed.violations) ? limits.proposed.violations.join(" ") : "This slot does not satisfy the reservation limits.";
+        showToast(violations, "danger", "reservationActionToast", "reservationActionToastBody");
+        return;
+    }
+
+    const selectedRoomName = roomNameByID.get(Number(roomID)) || document.getElementById("roomSelect")?.selectedOptions?.[0]?.textContent || `Room #${roomID}`;
+    const projectedDayAfter = limits?.proposed?.reservations_on_selected_day_after;
+    const projectedWeekAfter = limits?.proposed?.hours_on_selected_week_after;
+    const confirmationMessage = [
+        `${isEditing ? "Save" : "Confirm"} this reservation?`,
+        `Room: ${selectedRoomName}`,
+        `Time: ${formatDisplayDateTime(startTime)} to ${formatDisplayDateTime(endTime)}`,
+        `Group size: ${attendeeCount}`,
+        Number.isFinite(Number(projectedDayAfter)) ? `Reservations on selected day after save: ${projectedDayAfter}/${limits?.rules?.max_reservations_per_day || 2}` : "",
+        Number.isFinite(Number(projectedWeekAfter)) ? `Hours on selected week after save: ${projectedWeekAfter}h/${limits?.rules?.max_hours_per_week || 20}h` : ""
+    ].filter(Boolean).join("\n");
+    if (!window.confirm(confirmationMessage)) {
+        return;
+    }
+
     const endpoint = isEditing ? `/api/reservations?id=${editingReservationID}` : "/api/reservations";
     const res = await fetch(endpoint, {
         method: isEditing ? "PUT" : "POST",
@@ -281,7 +514,8 @@ async function createReservation(event) {
             room_id: Number(roomID),
             start_time: startTime.toISOString(),
             end_time: endTime.toISOString(),
-            attendee_count: attendeeCount
+            attendee_count: attendeeCount,
+            confirm: true
         })
     });
 
@@ -297,12 +531,12 @@ async function createReservation(event) {
     }
 
     showToast(isEditing ? "Reservation updated." : "Reservation created.", "success", "reservationActionToast", "reservationActionToastBody");
-    syncManualInputsFromState();
+    clearReservationDraftSelection();
     resetReservationFormMode();
     await fetchReservations();
-    await refreshAvailableRooms();
+    await refreshReservationLimits();
     if (!isEditing) {
-        window.setTimeout(openCalendarTab, 900);
+        window.setTimeout(openCalendarTab, 2000);
     }
 }
 

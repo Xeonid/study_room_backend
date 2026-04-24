@@ -233,7 +233,7 @@ function renderBookingListing() {
     countHost.textContent = `${filtered.length} booking${filtered.length === 1 ? "" : "s"}`;
 
     if (filtered.length === 0) {
-        rowsHost.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">No bookings found for current filters.</td></tr>`;
+        rowsHost.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">No reservations found for current filters.</td></tr>`;
         refreshSyncedHorizontalScrollbars();
         return;
     }
@@ -257,12 +257,8 @@ function renderBookingListing() {
                         <i class="bi bi-three-dots-vertical"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><button class="dropdown-item" type="button">Set as Pending</button></li>
-                        <li><button class="dropdown-item js-edit-booking" type="button" data-reservation-id="${model.id}">Edit booking</button></li>
-                        <li><button class="dropdown-item" type="button">Edit note</button></li>
-                        <li><button class="dropdown-item" type="button">Print</button></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><button class="dropdown-item text-danger js-delete-booking" type="button" data-reservation-id="${model.id}">Delete booking</button></li>
+                        <li><button class="dropdown-item js-edit-booking" type="button" data-reservation-id="${model.id}">Edit reservation</button></li>
+                        <li><button class="dropdown-item text-danger js-delete-booking" type="button" data-reservation-id="${model.id}">Delete reservation</button></li>
                     </ul>
                 </div>
             </td>
@@ -345,13 +341,36 @@ function isReservationOngoing(event) {
 
 function openReserveTab() {
     const reserveTabBtn = document.getElementById("reserve-tab-btn");
+    const reserveTab = document.getElementById("reserve-tab");
     if (!reserveTabBtn) return;
 
     if (typeof bootstrap !== "undefined" && typeof bootstrap.Tab === "function") {
         bootstrap.Tab.getOrCreateInstance(reserveTabBtn).show();
+        if (reserveTab) {
+            reserveTab.setAttribute("tabindex", "-1");
+            reserveTab.scrollIntoView({ behavior: "smooth", block: "start" });
+            try {
+                reserveTab.focus({ preventScroll: true });
+            } catch (err) {
+                reserveTab.focus();
+            }
+        } else {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        }
         return;
     }
     reserveTabBtn.click();
+    if (reserveTab) {
+        reserveTab.setAttribute("tabindex", "-1");
+        reserveTab.scrollIntoView({ behavior: "smooth", block: "start" });
+        try {
+            reserveTab.focus({ preventScroll: true });
+        } catch (err) {
+            reserveTab.focus();
+        }
+    } else {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    }
 }
 
 function setRoomSelectionByID(roomID) {
@@ -480,6 +499,11 @@ function renderCalendarDayCell(container, dayDate, eventsByDay, todayKey, showWe
             `;
             eventsHost.appendChild(eventEl);
         });
+
+        const reservable = document.createElement("div");
+        reservable.className = "timeline-reservable";
+        reservable.textContent = "Reservable";
+        eventsHost.appendChild(reservable);
     }
 
     if (dayEvents.length > 0) {
@@ -765,10 +789,34 @@ function initBookingsCalendar() {
             }
 
             const emptyDayTarget = event.target.closest(".timeline-empty");
-            if (!emptyDayTarget) return;
+            if (emptyDayTarget) {
+                const dayCell = emptyDayTarget.closest(".calendar-day");
+                if (!dayCell) return;
+                prefillReservationForDay(dayCell.dataset.day || "");
+                return;
+            }
 
-            const dayCell = emptyDayTarget.closest(".calendar-day");
+            const reservableTarget = event.target.closest(".timeline-reservable");
+            if (!reservableTarget) return;
+
+            const dayCell = reservableTarget.closest(".calendar-day");
             if (!dayCell) return;
+            prefillReservationForDay(dayCell.dataset.day || "");
+        });
+        timelineGrid.addEventListener("click", event => {
+            const target = event.target.closest(".timeline-event");
+            if (target) {
+                return;
+            }
+            if (event.target.closest(".timeline-empty") || event.target.closest(".timeline-reservable")) {
+                return;
+            }
+
+            const dayCell = event.target.closest(".calendar-day");
+            if (!dayCell || dayCell.classList.contains("is-empty")) {
+                return;
+            }
+
             prefillReservationForDay(dayCell.dataset.day || "");
         });
     }

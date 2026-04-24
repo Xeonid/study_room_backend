@@ -38,6 +38,7 @@ async function initDashboard() {
         });
     });
     document.getElementById("reservationCancelEditBtn").addEventListener("click", () => {
+        clearReservationDraftSelection();
         resetReservationFormMode();
         refreshAvailableRooms().catch(err => {
             setRoomAvailabilityHint(String(err.message || err), true);
