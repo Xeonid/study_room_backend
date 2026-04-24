@@ -50,6 +50,7 @@ registerForm.addEventListener("submit", async (event) => {
         }
 
         showSuccess("Registration successful. Redirecting to login...");
+        // Preserve the just-registered identity across the redirect to the dedicated login page.
         localStorage.setItem("registered_name_hint", name);
         localStorage.setItem("registered_email_hint", email);
         registerForm.reset();

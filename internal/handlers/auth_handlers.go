@@ -33,6 +33,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Name, email, and password are required", http.StatusBadRequest)
 		return
 	}
+	// Public registration always creates student accounts; admin privileges are not self-service.
 	body.Role = "student"
 
 	var exists int
@@ -116,6 +117,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The frontend caches these alongside the token so the dashboard can render immediately after redirect.
 	utils.JSON(w, http.StatusOK, map[string]string{
 		"token": token,
 		"name":  name,
@@ -186,6 +188,7 @@ func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	emailChanged := !strings.EqualFold(existingEmail, body.Email)
 	passwordChanged := body.NewPassword != ""
 	if emailChanged || passwordChanged {
+		// Email changes are treated like credential changes so account takeover cannot silently relabel an account.
 		if body.CurrentPassword == "" || !auth.CheckPasswordHash(body.CurrentPassword, hashedPassword) {
 			http.Error(w, "Current password is incorrect", http.StatusUnauthorized)
 			return

@@ -111,6 +111,7 @@ func (h *RoomHandler) GetRooms(w http.ResponseWriter, r *http.Request) {
 	`
 	args := []interface{}{boolToSQLite(includeInactive)}
 	if hasWindow {
+		// When editing an existing booking, the client can exclude its current attendees from the overlap check.
 		query = `
 			SELECT
 				rooms.id,
@@ -206,6 +207,7 @@ func (h *RoomHandler) GetRooms(w http.ResponseWriter, r *http.Request) {
 			availableCapacity = capacity - reservedAttendees
 		}
 		fitsRequiredCapacity := requiredCapacity == 0 || availableCapacity >= requiredCapacity
+		// Some UIs need to display undersized/full rooms as disabled instead of dropping them from the payload.
 		if !includeUnavailable && !fitsRequiredCapacity {
 			continue
 		}
@@ -421,6 +423,7 @@ func parseRequiredCapacity(raw string) (int, error) {
 
 func parseAvailabilityWindow(startRaw, endRaw string) (time.Time, time.Time, bool, error) {
 	if startRaw == "" && endRaw == "" {
+		// The room list endpoint also serves the pre-scheduling state where only static capacity matters.
 		return time.Time{}, time.Time{}, false, nil
 	}
 	if startRaw == "" || endRaw == "" {

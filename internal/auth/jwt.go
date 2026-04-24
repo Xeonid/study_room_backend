@@ -19,6 +19,7 @@ func CreateJWT(userID int, role string) (string, error) {
 		UserID: userID,
 		Role:   role,
 		RegisteredClaims: jwt.RegisteredClaims{
+			// The frontend stores the token client-side, so short-lived tokens reduce stale privilege windows.
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
@@ -31,6 +32,7 @@ func CreateJWT(userID int, role string) (string, error) {
 func ParseJWT(tokenStr string) (*jwt.Token, *Claims, error) {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
+		// The middleware treats successful parsing plus token.Valid as the complete auth gate.
 		return jwtKey, nil
 	})
 	return token, claims, err
