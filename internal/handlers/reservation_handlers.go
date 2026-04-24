@@ -30,6 +30,8 @@ const (
 	maxReservationDuration = 8 * time.Hour
 )
 
+var errRoomInactive = errors.New("Room is inactive")
+
 // -------------------- Create --------------------
 func (h *ReservationHandler) CreateReservation(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(middleware.UserIDKey).(int)
@@ -285,6 +287,7 @@ func beginImmediateReservationTx(ctx context.Context, db *sql.DB) (*sql.Conn, fu
 	if err != nil {
 		return nil, nil, err
 	}
+	// SQLite needs an immediate transaction here so overlapping reservations cannot overbook the same room.
 	if _, err := conn.ExecContext(ctx, "BEGIN IMMEDIATE"); err != nil {
 		conn.Close()
 		return nil, nil, err
@@ -332,7 +335,20 @@ func validateReservationRequest(req CreateReservationRequest) error {
 func ensureReservationFitsCapacity(ctx context.Context, conn *sql.Conn, req CreateReservationRequest, excludeReservationID int) error {
 	availability, err := getRoomAvailability(ctx, conn, req.RoomID, req.StartTime, req.EndTime)
 	if err == sql.ErrNoRows {
-		return err
+		// Differentiate "room does not exist" from "room exists but can no longer be reserved".
+		var roomExists int
+		checkErr := conn.QueryRowContext(ctx, `
+			SELECT 1
+			FROM rooms
+			WHERE id = ?
+		`, req.RoomID).Scan(&roomExists)
+		if checkErr == sql.ErrNoRows {
+			return err
+		}
+		if checkErr != nil {
+			return checkErr
+		}
+		return errRoomInactive
 	}
 	if err != nil {
 		return err
@@ -367,6 +383,8 @@ func writeReservationCapacityError(w http.ResponseWriter, err error) {
 	switch {
 	case err == sql.ErrNoRows:
 		http.Error(w, "Room not found", http.StatusNotFound)
+	case errors.Is(err, errRoomInactive):
+		http.Error(w, errRoomInactive.Error(), http.StatusConflict)
 	case stringsEqualFold(err.Error(), "Requested group size exceeds room capacity"), stringsEqualFold(err.Error(), "Not enough remaining capacity for this time slot"):
 		http.Error(w, err.Error(), http.StatusConflict)
 	default:

@@ -42,6 +42,7 @@ loginForm.addEventListener("submit", async (event) => {
         localStorage.setItem("user_email", (data.email || email).trim());
         localStorage.setItem("user_role", (data.role || "student").trim().toLowerCase());
 
+        // Mirror the combined auth page flow so dashboard bootstrap can rely on the same localStorage keys.
         if ((data.name || "").trim()) {
             localStorage.setItem("user_name", data.name.trim());
         } else {

@@ -108,6 +108,29 @@ func TestCreateReservationRejectsWhenOverlapExceedsCapacity(t *testing.T) {
 	}
 }
 
+func TestCreateReservationRejectsInactiveRoom(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	if _, err := db.Exec(`UPDATE rooms SET is_active = 0, deactivation_reason = 'Maintenance' WHERE id = 1`); err != nil {
+		t.Fatalf("deactivate room: %v", err)
+	}
+
+	handler := &ReservationHandler{DB: db}
+	body := `{"room_id":1,"start_time":"2026-04-14T12:00:00Z","end_time":"2026-04-14T13:00:00Z","attendee_count":1}`
+	req := requestWithUser(http.MethodPost, "/api/reservations", body)
+	rec := httptest.NewRecorder()
+
+	handler.CreateReservation(rec, req)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected 409, got %d with body %s", rec.Code, rec.Body.String())
+	}
+	if strings.TrimSpace(rec.Body.String()) != "Room is inactive" {
+		t.Fatalf("expected inactive room error, got %q", rec.Body.String())
+	}
+}
+
 func TestCreateReservationRejectsTooShortDuration(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()

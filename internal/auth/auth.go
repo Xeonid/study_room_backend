@@ -18,6 +18,7 @@ func CheckPasswordHash(password, hash string) bool {
 }
 
 func GenerateJWT(userID int, role string) (string, error) {
+	// Legacy map-claim helper; current request auth flow uses CreateJWT/Claims below.
 	claims := jwt.MapClaims{
 		"sub":  userID,
 		"role": role,

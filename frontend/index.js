@@ -48,6 +48,7 @@ loginForm.addEventListener("submit", async (event) => {
         localStorage.setItem("user_email", (data.email || email).trim());
         localStorage.setItem("user_role", String(data.role || "student").trim().toLowerCase());
 
+        // Keep the dashboard bootstrap fast after redirect without waiting on a separate profile request.
         if ((data.name || "").trim()) {
             localStorage.setItem("user_name", data.name.trim());
         } else {
@@ -92,6 +93,7 @@ registerForm.addEventListener("submit", async (event) => {
         }
 
         registerForm.reset();
+        // These hints survive the tab switch so follow-up login UI can reuse the just-registered identity.
         localStorage.setItem("registered_name_hint", name);
         localStorage.setItem("registered_email_hint", email);
         toggleAlert(registerSuccess, "Registration successful. Please login.");

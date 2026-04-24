@@ -15,7 +15,7 @@ const (
 	RoleKey   contextKey = "role"
 )
 
-// AuthMiddleware checks the Authorization header and sets user info in context
+// AuthMiddleware normalizes JWT identity into request context for downstream handlers.
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		header := r.Header.Get("Authorization")
@@ -46,6 +46,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 func RequireRole(role string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		currentRole, _ := r.Context().Value(RoleKey).(string)
+		// Role checks are exact on purpose; there is no implicit privilege hierarchy.
 		if currentRole != role {
 			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
